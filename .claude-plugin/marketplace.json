@@ -11,7 +11,10 @@
   "plugins": [
     {
       "name": "ai-toolbox",
-      "source": "./",
+      "source": {
+        "source": "github",
+        "repo": "Matisantillan11/ai-toolbox"
+      },
       "description": "Skills and agents for software teams: accessibility auditing, code review, project initialization, and feature planning with ClickUp integration.",
       "version": "1.0.0",
       "author": {
