@@ -110,7 +110,12 @@ Every field in the template is required. If a field genuinely does not apply (e.
 
 ## Step 3 — Output the Plan
 
-Present the full plan before taking any write actions. Use the exact template below for every subtask — this is what will be written to ClickUp or local files verbatim.
+> **MANDATORY TEMPLATE RULE**
+> Every subtask — without exception — must be written using the template below.
+> All 8 sections are required in every subtask, both in this preview and in what gets written to ClickUp or local files.
+> If a section has nothing to say, write `N/A`. Never skip, collapse, or summarize a section.
+
+Present the full plan before taking any write actions:
 
 ```
 ## Plan: <task title or goal>
@@ -121,29 +126,29 @@ Present the full plan before taking any write actions. Use the exact template be
 
 ---
 
-### Subtask 1 — <imperative title>
+### Subtask 1 — <imperative title starting with a verb>
 
 #### Context
 <Why this subtask exists and how it fits the overall goal. One or two sentences.>
 
 #### What to implement
-<Detailed description of the work — no ambiguity. Bullet points for multi-part work.>
+<Detailed description of the work — no ambiguity. Use bullet points for multi-part work.>
 
 #### Where
 <Specific file paths, modules, or layers involved. If not inferable, write the closest known location.>
 
 #### Acceptance criteria
 - [ ] <Specific, testable criterion — written so a reviewer can verify it without asking questions>
-- [ ] <Another criterion>
+- [ ] <Add as many criteria as needed>
 
 #### Out of scope
-<Explicitly list what this subtask should NOT do. Prevents scope creep during implementation.>
+<Explicitly list what this subtask must NOT do. If nothing notable, write "N/A".>
 
 #### Depends on
-<"Subtask N — <title>" for each blocker, or "None">
+<"Subtask N — <title>" for each blocker. If none, write "None".>
 
 #### Technical notes
-<Implementation hints, known edge cases, gotchas, or relevant prior art in the codebase. Omit the heading if truly nothing notable — but include it whenever in doubt.>
+<Implementation hints, known edge cases, gotchas, or relevant prior art in the codebase. If nothing notable, write "N/A".>
 
 #### Definition of done
 - [ ] Implementation satisfies all acceptance criteria above
@@ -154,8 +159,39 @@ Present the full plan before taking any write actions. Use the exact template be
 
 ---
 
-### Subtask 2 — <title>
-<same template>
+### Subtask 2 — <imperative title starting with a verb>
+
+#### Context
+<...>
+
+#### What to implement
+<...>
+
+#### Where
+<...>
+
+#### Acceptance criteria
+- [ ] <...>
+
+#### Out of scope
+<...>
+
+#### Depends on
+<...>
+
+#### Technical notes
+<...>
+
+#### Definition of done
+- [ ] Implementation satisfies all acceptance criteria above
+- [ ] Relevant unit or integration tests written and passing
+- [ ] No new lint, type, or build errors introduced
+- [ ] Code reviewed and approved by at least one teammate
+- [ ] Any new public API or behavior is documented (inline or in relevant docs)
+
+---
+
+(repeat the full template for every subsequent subtask)
 ```
 
 After presenting the plan, ask:
@@ -181,7 +217,7 @@ mcp__clickup__clickup_create_task {
 }
 ```
 
-The `description` field must contain the complete rendered template for that subtask (Context, What to implement, Where, Acceptance criteria, Out of scope, Depends on, Technical notes, Definition of done). Do not abbreviate.
+The `description` field must be the complete rendered template for that subtask exactly as presented in Step 3 — all 8 sections in order: Context, What to implement, Where, Acceptance criteria, Out of scope, Depends on, Technical notes, Definition of done. Do not abbreviate, merge, or omit any section. A task created without all 8 sections is invalid.
 
 After all subtasks are created, report:
 
@@ -197,7 +233,7 @@ All subtasks have been added to ticket <ticket-id>.
 
 ### If only `--description` was provided (Case C):
 
-Create a local task using `TaskCreate` for each subtask. Set the task title to the subtask title and the body to the full rendered template from Step 3 (all sections). Report:
+Create a local task using `TaskCreate` for each subtask. Set the task title to the subtask title and the body to the complete rendered template from Step 3 — all 8 sections in order: Context, What to implement, Where, Acceptance criteria, Out of scope, Depends on, Technical notes, Definition of done. Do not abbreviate, merge, or omit any section. Report:
 
 ```
 ## Task List Created (local)
@@ -213,6 +249,7 @@ These tasks are local to this session. To persist them, run `/plan-expert --tick
 
 ## Constraints
 
+- **Every task written — to ClickUp or locally — must use the mandatory 8-section template defined in Step 3. No exceptions. A task missing any section is incomplete and must not be created.**
 - Do not invent technical details that cannot be inferred from the input. If a detail is ambiguous, note it explicitly in the subtask description as: `⚠️ Clarify: <question>`.
 - Do not create subtasks for work that is already marked as done in the existing ticket subtasks.
 - Do not skip the user confirmation step between Step 3 and Step 4.
