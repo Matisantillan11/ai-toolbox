@@ -59,20 +59,29 @@ If `TASK_MODE` is `Skip`, go directly to [Finish](#finish).
 
 ### Branch A — ClickUp (`TASK_MODE = ClickUp`)
 
-#### 3A.1 — Get the workspace hierarchy
+#### 3A.1 — Ask for workspace and list
 
-Fetch the ClickUp workspace to let the user pick the right list for the parent ticket:
+Before fetching anything, use `AskUserQuestion` to ask the user for their ClickUp workspace name or ID:
+
+- Header: "ClickUp workspace"
+- Question: "Which ClickUp workspace should this ticket be created in? Enter the workspace name or ID."
+- Accept free-form text. Capture the answer as `WORKSPACE_INPUT`.
+
+Then fetch the workspace hierarchy to resolve available spaces and lists:
 
 ```
 mcp__clickup__clickup_get_workspace_hierarchy {}
 ```
 
-Use `AskUserQuestion` with:
-- Header: "ClickUp destination"
-- Question: "Which list should the parent ticket be created in?"
-- Options: build from the hierarchy response (Space → Folder → List). Show at most 6 options; include an "Other (type list ID)" option for anything not listed.
+Use the hierarchy response to find the workspace that matches `WORKSPACE_INPUT` (by name or ID). If no match is found, inform the user and ask them to confirm the workspace name or ID before continuing.
 
-Capture the selected `LIST_ID`.
+Once the workspace is resolved, use `AskUserQuestion` to ask the user to pick the destination list:
+
+- Header: "ClickUp list"
+- Question: "Which list should the parent ticket be created in?"
+- Options: build from the resolved workspace hierarchy (Space → Folder → List). Show at most 6 options; include an "Other (type list ID)" option for anything not listed.
+
+Capture the selected value as `LIST_ID`. Do not proceed to 3A.2 until both `WORKSPACE_INPUT` and `LIST_ID` are confirmed.
 
 #### 3A.2 — Create the parent ticket
 
