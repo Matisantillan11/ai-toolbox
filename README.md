@@ -70,19 +70,7 @@ Or open `~/.claude/settings.json` and add it manually:
 }
 ```
 
-### 3. Configure MCP servers
-
-The plugin ships with an `mcp.json` that pre-configures the GitHub and ClickUp MCP servers. You need to supply your GitHub token as an environment variable.
-
-Add this to your shell profile (`~/.zshrc` or `~/.bashrc`):
-
-```bash
-export GITHUB_TOKEN=your_github_personal_access_token
-```
-
-The first time Claude Code connects to each MCP server, it will ask for your approval. ClickUp uses browser-based OAuth — no token setup required.
-
-### 4. Verify the setup
+### 3. Verify the setup
 
 Open Claude Code in any project and run:
 

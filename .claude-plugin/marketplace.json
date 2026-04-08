@@ -1,0 +1,32 @@
+{
+  "name": "ai-toolbox",
+  "owner": {
+    "name": "Matias Santillan",
+    "email": "matias1.santillan@gmail.com"
+  },
+  "metadata": {
+    "description": "A curated set of skills and agents for software teams. Covers accessibility auditing, code review, project initialization, and an end-to-end feature planning workflow backed by ClickUp.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "ai-toolbox",
+      "source": {
+        "source": "github",
+        "repo": "matisantillandev/ai-toolbox",
+        "ref": "main"
+      },
+      "description": "Skills and agents for software teams: accessibility auditing, code review, project initialization, and feature planning with ClickUp integration.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Matias Santillan",
+        "email": "matias1.santillan@gmail.com"
+      },
+      "homepage": "https://github.com/matisantillandev/ai-toolbox",
+      "repository": "https://github.com/matisantillandev/ai-toolbox",
+      "license": "MIT",
+      "keywords": ["ai", "toolbox", "skills", "agents", "code-review", "accessibility", "planning", "clickup"],
+      "strict": true
+    }
+  ]
+}
