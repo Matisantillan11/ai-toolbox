@@ -23,7 +23,6 @@
       },
       "homepage": "https://github.com/Matisantillan11/ai-toolbox",
       "repository": "https://github.com/Matisantillan11/ai-toolbox",
-      "license": "MIT",
       "keywords": ["ai", "toolbox", "skills", "agents", "code-review", "accessibility", "planning", "clickup"],
       "strict": true
     }
