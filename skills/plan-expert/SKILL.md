@@ -95,48 +95,67 @@ For each of the following areas, decide if it is relevant to this task. Only inc
 ### 2.3 Decompose into subtasks
 
 Break the work into sequential subtasks. Each subtask must:
-- Have a clear, imperative title (e.g., "Add `POST /auth/login` endpoint")
-- Include a detailed description covering:
-  - **What** to implement (no ambiguity)
-  - **Where** it goes (file, module, layer — if inferable)
-  - **Acceptance criteria** — how to know it's done
-  - **Dependencies** — which other subtasks must complete first (reference by number)
+- Have a clear, imperative title starting with a verb (e.g., "Add `POST /auth/login` endpoint", "Write unit tests for TokenService")
 - Be independently completable by one engineer
-- Be scoped to a single concern (no "and" in the title if avoidable)
+- Be scoped to a single concern — avoid "and" in the title
+- Be populated using the **Subtask Template** defined in Step 3
 
 Order subtasks from foundational to dependent (data layer → logic → API → UI → tests → docs).
 
 Aim for 4–10 subtasks for most tasks. If the task is very large, note that it should be split into separate tickets after planning.
 
+Every field in the template is required. If a field genuinely does not apply (e.g., "Out of scope" has nothing notable), write "N/A" — never omit the field.
+
 ---
 
 ## Step 3 — Output the Plan
 
-Present the plan in this format before taking any write actions:
+Present the full plan before taking any write actions. Use the exact template below for every subtask — this is what will be written to ClickUp or local files verbatim.
 
 ```
 ## Plan: <task title or goal>
 
-**Goal:** <one-sentence objective>
-
-**Scope:** <comma-separated list of relevant concern areas>
+**Goal:** <one-sentence objective — what must be true when this is done>
+**Scope:** <comma-separated concern areas from 2.2>
+**Subtasks:** <count>
 
 ---
 
-### Subtask 1 — <title>
-**Description:**  
-<detailed description>
+### Subtask 1 — <imperative title>
 
-**Acceptance Criteria:**
-- <criterion>
-- <criterion>
+#### Context
+<Why this subtask exists and how it fits the overall goal. One or two sentences.>
 
-**Depends on:** none
+#### What to implement
+<Detailed description of the work — no ambiguity. Bullet points for multi-part work.>
+
+#### Where
+<Specific file paths, modules, or layers involved. If not inferable, write the closest known location.>
+
+#### Acceptance criteria
+- [ ] <Specific, testable criterion — written so a reviewer can verify it without asking questions>
+- [ ] <Another criterion>
+
+#### Out of scope
+<Explicitly list what this subtask should NOT do. Prevents scope creep during implementation.>
+
+#### Depends on
+<"Subtask N — <title>" for each blocker, or "None">
+
+#### Technical notes
+<Implementation hints, known edge cases, gotchas, or relevant prior art in the codebase. Omit the heading if truly nothing notable — but include it whenever in doubt.>
+
+#### Definition of done
+- [ ] Implementation satisfies all acceptance criteria above
+- [ ] Relevant unit or integration tests written and passing
+- [ ] No new lint, type, or build errors introduced
+- [ ] Code reviewed and approved by at least one teammate
+- [ ] Any new public API or behavior is documented (inline or in relevant docs)
 
 ---
 
 ### Subtask 2 — <title>
-...
+<same template>
 ```
 
 After presenting the plan, ask:
@@ -151,17 +170,20 @@ Wait for user confirmation before proceeding to Step 4.
 
 ### If `--ticket-id` was provided (Case B or D):
 
-Create each subtask directly on the ClickUp ticket using:
+Fetch the parent task's `list` field to get the correct `list_id`. Create each subtask in order (1 → N) using:
+
 ```
 mcp__clickup__clickup_create_task {
   list_id: "<same list as parent task>",
   name: "<subtask title>",
-  description: "<full subtask description including acceptance criteria and dependencies>",
+  description: "<full subtask body using the template from Step 3 — all sections included>",
   parent: "<ticket-id>"
 }
 ```
 
-Fetch the parent task's `list` field to get the correct `list_id`. Create subtasks in order (1 → N). After all subtasks are created, report:
+The `description` field must contain the complete rendered template for that subtask (Context, What to implement, Where, Acceptance criteria, Out of scope, Depends on, Technical notes, Definition of done). Do not abbreviate.
+
+After all subtasks are created, report:
 
 ```
 ## Subtasks Created
@@ -175,7 +197,7 @@ All subtasks have been added to ticket <ticket-id>.
 
 ### If only `--description` was provided (Case C):
 
-Create a temporary local task list using `TaskCreate` for each subtask. Label each task with the subtask title and include the full description in the task body. Report:
+Create a local task using `TaskCreate` for each subtask. Set the task title to the subtask title and the body to the full rendered template from Step 3 (all sections). Report:
 
 ```
 ## Task List Created (local)
