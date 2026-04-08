@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_TOKEN}"
+      }
+    },
+    "clickup": {
+      "type": "http",
+      "url": "https://mcp.clickup.com/mcp"
+    }
+  }
+}

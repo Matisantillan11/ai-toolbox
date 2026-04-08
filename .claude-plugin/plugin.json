@@ -1,0 +1,10 @@
+{
+  "name": "ai-toolbox",
+  "version": "1.0.0",
+  "description": "A collection of AI-powered tools and utilities",
+  "author": {
+    "name": "Matias Santillan",
+    "email": "matias1.santillan@gmail.com"
+  },
+  "keywords": ["ai", "toolbox", "utilities"]
+}
