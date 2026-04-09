@@ -21,6 +21,8 @@ Skills are reusable workflows invoked with a `/` command directly in Claude Code
 | **design-system-docs** | `/design-system-docs` | Audits design system documentation. If Storybook is present, reviews its quality and suggests improvements. If not, produces a step-by-step plan to implement it. |
 | **design-system-setup** | `/design-system-setup` | End-to-end design system setup. Runs `design-expert` → `design-system-docs` → `plan-expert` in sequence to document the design system, audit or plan Storybook, and create all execution tasks in ClickUp or locally. |
 | **planning-features** | `/planning-features` | End-to-end feature planning. Runs `feature-discovery` then `plan-expert` back to back — gathers requirements, creates a ClickUp ticket, and breaks it into an execution plan. |
+| **create-pr** | `/create-pr` | Creates a GitHub PR with a fully auto-populated standardized template. Infers base branch, derives description from the diff, detects shared code impact, tags stakeholders from CODEOWNERS, and builds a concrete test plan. Designed to run without human input when called by an agent. |
+| **implement-task** | `/implement-task` | Implements a task end-to-end. Given a ClickUp ticket ID or description, reads project context, plans at the file level, writes the code, runs automated checks + `code-review`, applies fixes, commits, and opens a PR via `create-pr`. |
 
 ### Agents
 
@@ -30,6 +32,7 @@ Agents orchestrate multiple skills in sequence. They are auto-selected by Claude
 |---|---|
 | **planning-features-agent** | Runs `feature-discovery` then `plan-expert` back to back. Gathers all requirements, creates a ClickUp ticket, and immediately breaks it into an execution plan with subtasks. |
 | **design-system-setup-agent** | Runs `design-expert` → `design-system-docs` → `plan-expert` in sequence. Documents the design system, audits or plans Storybook, and creates all execution tasks in ClickUp or locally. |
+| **implement-task-agent** | Implements a task end-to-end. Resolves a ClickUp ticket or description (via `plan-expert`), reads the codebase, plans and writes the code, runs `code-review` and applies fixes, commits, and opens a PR via `create-pr`. |
 
 > **Tip:** Each agent has a matching skill (`/planning-features`, `/design-system-setup`) for direct slash-command invocation. Use the skill when you know exactly what you want; rely on the agent for automatic selection when you describe the goal naturally.
 
@@ -162,6 +165,18 @@ All skills accept optional arguments. Run without arguments and the skill will a
 
 # Full feature planning session (feature-discovery + plan-expert)
 /planning-features
+
+# Create a PR with auto-populated template from the current branch diff
+/create-pr
+
+# Create a PR targeting a specific base branch
+/create-pr --base develop
+
+# Implement a task from a ClickUp ticket and open a PR
+/implement-task --ticket-id abc123xyz
+
+# Implement a task from a description (runs plan-expert first, then implements)
+/implement-task --description "Add email validation to the signup form"
 ```
 
 ### Agents
@@ -176,6 +191,10 @@ Agents are invoked by describing the task naturally — Claude Code selects the 
 # Design system setup
 "Set up the design system for this project"
 "I want to document our design system and plan the Storybook work"
+
+# Task implementation
+"Implement ticket CU-abc123"
+"Work on this task and open a PR when done"
 ```
 
 ---
@@ -188,11 +207,14 @@ ai-toolbox/
 │   └── plugin.json                      # Plugin metadata
 ├── agents/
 │   ├── planning-features-agent.md
-│   └── design-system-setup-agent.md
+│   ├── design-system-setup-agent.md
+│   └── implement-task-agent.md
 ├── skills/
 │   ├── a11y-auditor/
 │   │   └── SKILL.md
 │   ├── code-review/
+│   │   └── SKILL.md
+│   ├── create-pr/
 │   │   └── SKILL.md
 │   ├── design-expert/
 │   │   └── SKILL.md
@@ -201,6 +223,8 @@ ai-toolbox/
 │   ├── design-system-setup/
 │   │   └── SKILL.md
 │   ├── feature-discovery/
+│   │   └── SKILL.md
+│   ├── implement-task/
 │   │   └── SKILL.md
 │   ├── init-project/
 │   │   └── SKILL.md
