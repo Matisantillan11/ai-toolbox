@@ -1,6 +1,6 @@
 # AI Toolbox — Claude Code Plugin
 
-A Claude Code plugin with a curated set of skills and agents for software teams. Covers accessibility auditing, code review, project initialization, and an end-to-end feature planning workflow backed by ClickUp.
+A Claude Code plugin with a curated set of skills and agents for software teams. Covers accessibility auditing, code review, project initialization, design system documentation, and end-to-end feature planning workflows backed by ClickUp.
 
 ---
 
@@ -16,15 +16,22 @@ Skills are reusable workflows invoked with a `/` command directly in Claude Code
 | **code-review** | `/code-review` | Two-phase code review: fast pre-commit checks (spec compliance, type safety, security) followed by a deep SOLID / KISS / DRY structural audit. |
 | **a11y-auditor** | `/a11y-auditor` | Audits code or components for accessibility barriers against WCAG 2.2 (A, AA, AAA). Auto-detects web vs. mobile stack. |
 | **feature-discovery** | `/feature-discovery` | Acts as a functional analyst to gather all feature requirements through structured questioning. Outputs a comprehensive spec and optionally creates a ClickUp ticket. |
-| **plan-expert** | `/plan-expert` | Takes a ClickUp ticket or a free-form description and breaks it into detailed, ordered subtasks. Creates the subtasks directly on the ClickUp ticket or as a local task list. |
+| **plan-expert** | `/plan-expert` | Takes a ClickUp ticket or a free-form description and breaks it into detailed, ordered subtasks using a structured 8-section template. Creates subtasks on the ClickUp ticket or as a local task list. |
+| **design-expert** | `/design-expert` | Scans the project for all design-related information (colors, typography, spacing, component patterns, dark mode, design system) and generates or updates a `DESIGN.md` file. |
+| **design-system-docs** | `/design-system-docs` | Audits design system documentation. If Storybook is present, reviews its quality and suggests improvements. If not, produces a step-by-step plan to implement it. |
+| **design-system-setup** | `/design-system-setup` | End-to-end design system setup. Runs `design-expert` → `design-system-docs` → `plan-expert` in sequence to document the design system, audit or plan Storybook, and create all execution tasks in ClickUp or locally. |
+| **planning-features** | `/planning-features` | End-to-end feature planning. Runs `feature-discovery` then `plan-expert` back to back — gathers requirements, creates a ClickUp ticket, and breaks it into an execution plan. |
 
 ### Agents
 
-Agents orchestrate multiple skills in sequence and run as a single end-to-end workflow.
+Agents orchestrate multiple skills in sequence. They are auto-selected by Claude based on context, or accessible via `/agents`.
 
 | Agent | What it does |
 |---|---|
 | **planning-features-agent** | Runs `feature-discovery` then `plan-expert` back to back. Gathers all requirements, creates a ClickUp ticket, and immediately breaks it into an execution plan with subtasks. |
+| **design-system-setup-agent** | Runs `design-expert` → `design-system-docs` → `plan-expert` in sequence. Documents the design system, audits or plans Storybook, and creates all execution tasks in ClickUp or locally. |
+
+> **Tip:** Each agent has a matching skill (`/planning-features`, `/design-system-setup`) for direct slash-command invocation. Use the skill when you know exactly what you want; rely on the agent for automatic selection when you describe the goal naturally.
 
 ---
 
@@ -38,25 +45,44 @@ Agents orchestrate multiple skills in sequence and run as a single end-to-end wo
 
 ## Installation
 
-### 1. Clone the repository
+### Option 1 — Install directly via Claude Code (no cloning required)
 
-Pick a permanent location on your machine — this folder needs to stay there as long as you want the plugin active.
-
-```bash
-git clone https://github.com/matisantillandev/ai-toolbox ~/tools/ai-toolbox
-```
-
-### 2. Register the plugin with Claude Code
-
-Point Claude Code to the local folder:
+Point Claude Code to the GitHub repository URL and it will install the plugin automatically:
 
 ```bash
-claude plugins add ~/tools/ai-toolbox
+claude plugins add https://github.com/Matisantillan11/ai-toolbox
 ```
 
 Then enable it:
 
 ```bash
+claude plugins enable ai-toolbox
+```
+
+Claude Code fetches the plugin from GitHub and keeps it available. To update to the latest version at any time:
+
+```bash
+claude plugins update ai-toolbox
+```
+
+---
+
+### Option 2 — Clone and install locally
+
+Use this option if you want to modify skills or develop your own on top of this plugin.
+
+**1. Clone the repository**
+
+Pick a permanent location on your machine — this folder needs to stay there as long as you want the plugin active.
+
+```bash
+git clone https://github.com/Matisantillan11/ai-toolbox ~/tools/ai-toolbox
+```
+
+**2. Register the plugin with Claude Code**
+
+```bash
+claude plugins add ~/tools/ai-toolbox
 claude plugins enable ai-toolbox
 ```
 
@@ -70,17 +96,7 @@ Or open `~/.claude/settings.json` and add it manually:
 }
 ```
 
-### 3. Verify the setup
-
-Open Claude Code in any project and run:
-
-```
-/init-project
-```
-
-If the skill runs and produces an `AGENTS.md` file, the plugin is working.
-
-### Keeping it up to date
+**3. Keep it up to date**
 
 Since the plugin runs from your local clone, updating is a regular `git pull`:
 
@@ -89,6 +105,18 @@ cd ~/tools/ai-toolbox && git pull
 ```
 
 No reinstallation needed — Claude Code picks up the changes on the next session.
+
+---
+
+### Verify the setup
+
+Open Claude Code in any project and run:
+
+```
+/init-project
+```
+
+If the skill runs and produces an `AGENTS.md` file, the plugin is working.
 
 ---
 
@@ -122,22 +150,32 @@ All skills accept optional arguments. Run without arguments and the skill will a
 
 # Plan from a description
 /plan-expert --description "Build a user authentication flow with email and OAuth"
+
+# Document the project's design system
+/design-expert
+
+# Audit or plan Storybook documentation
+/design-system-docs
+
+# Full design system setup (design-expert + design-system-docs + plan-expert)
+/design-system-setup
+
+# Full feature planning session (feature-discovery + plan-expert)
+/planning-features
 ```
 
 ### Agents
 
-Agents are invoked by describing the task naturally — Claude Code selects the right agent automatically based on what you ask.
+Agents are invoked by describing the task naturally — Claude Code selects the right agent automatically based on what you ask. They are also accessible via `/agents`.
 
-```bash
-# Start a full feature planning session (discovery → spec → ClickUp ticket → subtasks)
+```
+# Feature planning
 "I want to plan a new feature"
 "Let's plan the user notification system"
-```
 
-Or explicitly:
-
-```bash
-claude --agent planning-features-agent
+# Design system setup
+"Set up the design system for this project"
+"I want to document our design system and plan the Storybook work"
 ```
 
 ---
@@ -147,21 +185,29 @@ claude --agent planning-features-agent
 ```
 ai-toolbox/
 ├── .claude-plugin/
-│   └── plugin.json          # Plugin metadata
+│   └── plugin.json                      # Plugin metadata
 ├── agents/
-│   └── planning-features-agent.md
+│   ├── planning-features-agent.md
+│   └── design-system-setup-agent.md
 ├── skills/
 │   ├── a11y-auditor/
 │   │   └── SKILL.md
 │   ├── code-review/
 │   │   └── SKILL.md
+│   ├── design-expert/
+│   │   └── SKILL.md
+│   ├── design-system-docs/
+│   │   └── SKILL.md
+│   ├── design-system-setup/
+│   │   └── SKILL.md
 │   ├── feature-discovery/
 │   │   └── SKILL.md
 │   ├── init-project/
 │   │   └── SKILL.md
-│   └── plan-expert/
+│   ├── plan-expert/
+│   │   └── SKILL.md
+│   └── planning-features/
 │       └── SKILL.md
-├── mcp.json                 # MCP server configuration (GitHub + ClickUp)
 └── README.md
 ```
 
@@ -216,6 +262,8 @@ ai-toolbox/
 
 3. Use the `skills` frontmatter field to preload skills. This ensures skills execute inline in the agent's context rather than being delegated to a subagent.
 
+> **Note:** If you want the workflow to also be available as a `/` command, create a matching skill under `skills/my-agent/SKILL.md` with `allowed-tools` instead of `tools` and the same body. Both files can coexist — the agent handles auto-selection, the skill handles direct invocation.
+
 ---
 
 ## MCP servers
@@ -225,4 +273,4 @@ ai-toolbox/
 | `github` | HTTP | GitHub repository operations via the Copilot MCP endpoint |
 | `clickup` | HTTP | ClickUp task management — read tickets, create tasks and subtasks |
 
-The `mcp.json` at the project root is automatically picked up by Claude Code as a project-scoped MCP config. Tokens are read from environment variables — never committed to the repo.
+The MCP configuration is automatically picked up by Claude Code as a project-scoped config. Tokens are read from environment variables — never committed to the repo.
