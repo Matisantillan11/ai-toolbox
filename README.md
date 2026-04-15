@@ -107,7 +107,19 @@ Since the plugin runs from your local clone, updating is a regular `git pull`:
 cd ~/tools/ai-toolbox && git pull
 ```
 
-No reinstallation needed — Claude Code picks up the changes on the next session.
+---
+
+### Option 3 — Install for Gemini / Antigravity
+
+If you want to use these skills directly in Gemini/Antigravity instead of Claude, you can instantly inject the Knowledge Items (KIs) into your project by running the official installer.
+
+Run this single command from the root of any project:
+
+```bash
+bash <(curl -s https://raw.githubusercontent.com/Matisantillan11/ai-toolbox/main/install.sh)
+```
+
+This will safely download the AI-Toolbox and link the skills as native KIs in a `.gemini/` folder locally, keeping your project portable. Just ask Gemini *"Run the init-project skill"* to test it!
 
 ---
 
