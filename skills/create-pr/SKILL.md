@@ -99,7 +99,7 @@ Example: `feat/CU-abc123-user-auth-flow` → `[Feature] User auth flow (CU-abc12
 
 ## Step 5 — Populate the PR template
 
-Populate every section below by analyzing the git context from Step 2. Instructions inside each section describe how to derive the content — follow them precisely. The rendered output must not contain the instruction text.
+The canonical PR body structure is defined in `templates/pull_request_template.md` at the project root of the **ai-toolbox** repo (the repo where this skill lives). Read that file and use it as the exact skeleton — do not invent or remove sections. Populate every placeholder by analyzing the git context from Step 2. Instructions inside each section below describe how to derive the content — follow them precisely. The rendered output must not contain the instruction text or placeholder markers.
 
 ---
 
@@ -111,6 +111,31 @@ Using the commit messages and `git diff` output:
 - Every bullet must start with exactly one of these semantic keywords: `add`, `update`, `fix`, `refactor`, `delete`
 - Do not paste raw commit messages — rewrite them as coherent intent statements
 - Be specific: reference function names, component names, or API routes where relevant
+
+---
+
+### Section: Type of Change
+
+From the PR title type label (inferred in Step 4) or the branch prefix, tick exactly one checkbox:
+
+| Branch prefix / label | Checkbox to tick |
+|---|---|
+| `feat/` / `[Feature]` | `- [x] Feature` |
+| `fix/` / `[Fix]` | `- [x] Bug Fix` |
+| `refactor/` / `[Refactor]` | `- [x] Refactor` |
+| `docs/` / `[Docs]` | `- [x] Docs` |
+| `chore/` / `[Chore]` | `- [x] Chore` |
+| `hotfix/` / `[Hotfix]` | `- [x] Hotfix` |
+
+Leave all others unchecked.
+
+---
+
+### Section: Related Ticket
+
+- If `--ticket-id` was provided, format it as a ClickUp URL: `https://app.clickup.com/t/<id>`
+- If a ticket ID was extracted from the branch name (e.g. `CU-abc123`), use the same format
+- If no ticket is available, write: `N/A`
 
 ---
 
@@ -136,7 +161,23 @@ If any matches are found:
 - List each affected file path
 - Add: `Team notified: No` (the author must verify before merge)
 
-If no matches: Answer: **No**
+If no matches: Do not include the `### Shared Code Impact` section in the rendered PR body.
+
+---
+
+### Section: Breaking Changes
+
+Analyze the git diff and commit messages for indications of breaking changes, such as:
+- Modified or removed API route parameters/responses
+- Changes to shared library function signatures/interfaces
+- Database schema changes that remove or alter columns
+- Commit messages containing `BREAKING CHANGE:` or `!` in the type prefix (e.g. `feat!:`)
+
+If breaking changes are detected:
+- Answer: **Yes**
+- Describe what breaks and the required migration path for other developers
+
+If no breaking changes: Do not include the `### Breaking Changes` section in the rendered PR body.
 
 ---
 
@@ -212,16 +253,24 @@ Format:
 Assemble the full PR body using this exact structure:
 
 ```markdown
-### Description 📝
+## Description 📝
 <populated description bullets>
+
+### Type of Change
+<checkbox list with exactly one item checked based on branch type>
+
+### Related Ticket
+<ticket URL or "N/A">
 
 ### Module
 - Migration: <M{N} or TBD>
 - Sprint: <S{N} or TBD>
 
 ### Shared Code Impact
-<Yes/No + file list or "No">
-Team notified: <Yes/No>
+<Include only if Yes: file list and Team notified>
+
+### Breaking Changes
+<Include only if Yes: describe what breaks and the migration path>
 
 ### FYI 🙋
 <@handles or "No additional stakeholders identified.">
