@@ -40,7 +40,7 @@ def install_antigravity_knowledge():
                 
                 metadata = {
                     "title": f"Skill: {skill_name}",
-                    "summary": f"Use this knowledge item when the user asks to run or trigger the '{skill_name}' skill/workflow. It contains the exact prompt instructions to follow.",
+                    "summary": f"Use this knowledge item when the user types `/{skill_name}` or asks to run the '{skill_name}' skill/workflow. It contains the exact prompt instructions to follow.",
                     "references": []
                 }
                 with open(ki_dir / "metadata.json", "w") as f:
@@ -54,7 +54,20 @@ def install_antigravity_knowledge():
                         
                 templates_dir = source_dir / "templates"
                 if templates_dir.exists():
-                    shutil.copytree(templates_dir, artifacts_dir / "templates", dirs_exist_ok=True)
+                    # Extract text from the skill artifacts
+                    skill_text = ""
+                    for item in artifacts_dir.rglob('*'):
+                        if item.is_file() and item.suffix in ['.md', '.txt']:
+                            skill_text += item.read_text(errors='ignore')
+                    
+                    # Only copy templates that are actually referenced in this skill
+                    copied_templates = False
+                    for template_file in templates_dir.iterdir():
+                        if template_file.is_file() and template_file.name in skill_text:
+                            if not copied_templates:
+                                (artifacts_dir / "templates").mkdir(exist_ok=True)
+                                copied_templates = True
+                            shutil.copy2(template_file, artifacts_dir / "templates" / template_file.name)
                     
                 print(f"  ✅ Installed KI: {skill_name}")
 
@@ -76,7 +89,7 @@ def install_antigravity_knowledge():
                 
                 metadata = {
                     "title": f"Agent persona: {agent_name}",
-                    "summary": f"Use this knowledge item when the user asks about or wants you to act as the '{agent_name}' agent. It contains the instructions and system prompt for the agent.",
+                    "summary": f"Use this knowledge item when the user types `/{agent_name}` or `/{agent_name}-agent`, or wants you to act as the '{agent_name}' agent. It contains the instructions.",
                     "references": []
                 }
                 with open(ki_dir / "metadata.json", "w") as f:
