@@ -69,8 +69,40 @@ def install_antigravity_knowledge():
                                 copied_templates = True
                             shutil.copy2(template_file, artifacts_dir / "templates" / template_file.name)
                     
-                print(f"  ✅ Installed KI: {skill_name}")
+                # Create the .agent/workflows wrapper for this skill
+                skill_desc = "Execute this skill according to its instructions."
+                skill_file_path = skill_path / "SKILL.md"
+                if skill_file_path.exists():
+                    try:
+                        lines = skill_file_path.read_text(errors='ignore').splitlines()
+                        for line in lines:
+                            if line.startswith("description:"):
+                                skill_desc = line.replace("description:", "").strip()
+                                break
+                    except Exception:
+                        pass
 
+                workflows_dir = target_project_dir / ".agents" / "workflows"
+                workflows_dir.mkdir(parents=True, exist_ok=True)
+                
+                workflow_content = f"""---
+name: {skill_name}
+description: {skill_desc}
+---
+
+// turbo-all
+
+**IF YOU PROCEED TO RESEARCH WITHOUT READING THE SKILL KNOWLEDGE FIRST, YOU ARE FAILING THIS MISSION.**
+
+1. **Phase 0: Skill Acquisition (CRITICAL)**: You must acquire the instructions for this workflow from your local knowledge directory.
+   - Read the file at: `.gemini/antigravity/knowledge/skill_{skill_name}/artifacts/SKILL.md`
+   - Observe any templates located in `.gemini/antigravity/knowledge/skill_{skill_name}/artifacts/templates/` (if they exist).
+
+2. **Phase 1: Execution**: Follow the exact instructions provided in the SKILL.md file to execute this workflow completely.
+"""
+                (workflows_dir / f"{skill_name}.md").write_text(workflow_content)
+                
+                print(f"  ✅ Installed KI & Workflow: {skill_name}")
     # 2. Convert Agents
     print("\n🤖 Converting agents to Knowledge Items...")
     agents_dir = source_dir / "agents"
