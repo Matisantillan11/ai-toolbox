@@ -29,4 +29,4 @@ fi
 rm -rf "$TEMP_DIR"
 
 echo "✨ All done! Your project is now supercharged with the ai-toolbox KIs."
-echo "🧪 To test it, ask Gemini: 'Run the init-project skill' and watch it go!"
+echo "🧪 To test it, just type '/init-project' in the Antigravity chat!"

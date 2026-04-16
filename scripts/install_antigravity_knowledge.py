@@ -130,7 +130,7 @@ description: {skill_desc}
                 shutil.copy2(agent_path, artifacts_dir / agent_path.name)
                 print(f"  ✅ Installed KI: {agent_name}")
 
-    print("\n🎉 Installation complete! Gemini/Antigravity will now globally recognize these workflows.")
+    print("\n🎉 Installation complete! Gemini/Antigravity will now recognize these workflows within this project scope.")
 
 if __name__ == "__main__":
     install_antigravity_knowledge()
