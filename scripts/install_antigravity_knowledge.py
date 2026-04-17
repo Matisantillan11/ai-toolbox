@@ -21,6 +21,14 @@ def install_antigravity_knowledge():
     ki_base_dir = target_project_dir / ".gemini/antigravity/knowledge"
     ki_base_dir.mkdir(parents=True, exist_ok=True)
 
+    # 0. Initialize NKN (Neural Knowledge Network)
+    print("\n🧠 Initializing Neural Knowledge Network...")
+    nkn_tool = source_dir / "scripts" / "nkn_tool.py"
+    if nkn_tool.exists():
+        os.system(f"python3 {nkn_tool} init")
+    else:
+        print("⚠️ Warning: scripts/nkn_tool.py not found. NKN initialization skipped.")
+
     # 1. Convert Skills
     print("\n📦 Converting skills to Knowledge Items...")
     skills_dir = source_dir / "skills"
@@ -94,11 +102,15 @@ description: {skill_desc}
 
 **IF YOU PROCEED TO RESEARCH WITHOUT READING THE SKILL KNOWLEDGE FIRST, YOU ARE FAILING THIS MISSION.**
 
-1. **Phase 0: Skill Acquisition (CRITICAL)**: You must acquire the instructions for this workflow from your local knowledge directory.
+1. **Phase 0: Memory Retrieval (NKN)**: Check the local Neural Knowledge Network for any relevant past decisions or architectural patterns before starting.
+   - Run: `python3 {nkn_tool} query --term "{skill_name}"`
+   - Incorporate any findings into your planning.
+
+2. **Phase 1: Skill Acquisition**: You must acquire the instructions for this workflow from your local knowledge directory.
    - Read the file at: `.gemini/antigravity/knowledge/skill_{skill_name}/artifacts/SKILL.md`
    - Observe any templates located in `.gemini/antigravity/knowledge/skill_{skill_name}/artifacts/templates/` (if they exist).
 
-2. **Phase 1: Execution**: Follow the exact instructions provided in the SKILL.md file to execute this workflow completely.
+3. **Phase 2: Execution**: Follow the exact instructions provided in the SKILL.md file to execute this workflow completely.
 """
                 (workflows_dir / f"{skill_name}.md").write_text(workflow_content)
                 
