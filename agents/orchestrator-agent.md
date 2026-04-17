@@ -30,6 +30,15 @@ model: multi_agent_orchestrator (Returns and hand-offs are managed here)
 
 ---
 
+## Activation
+
+Orchestrator activates when:
+- User starts a new conversation, resume a session or sends a message.
+- A specialized subagent returns after completing its task.
+- A failure or ambiguity requires re-routing or escalation.
+
+---
+
 ## Workflow
 
 ```yaml
