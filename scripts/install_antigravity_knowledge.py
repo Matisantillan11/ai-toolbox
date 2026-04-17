@@ -151,7 +151,7 @@ description: {skill_desc}
                 print(f"  ✅ Installed Agent: {agent_name}")
 
     print("\n🎉 Installation complete!")
-    print(f"👉 To use this in Claude Code, make sure you ran: 'claude plugins add {source_dir}'")
+    print(f"👉 To use this in Claude Code, make sure you ran: 'claude plugins add https://github.com/Matisantillan11/ai-toolbox'")
     print(f"👉 In Antigravity/Gemini, you can now run any skill or use the '/nkn-agent' workflow.")
 
 if __name__ == "__main__":
