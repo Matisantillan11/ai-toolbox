@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 def install_antigravity_knowledge():
-    print("🚀 Installing AI-Toolbox to Antigravity (Gemini)...")
+    print("🚀 Installing AI-Toolbox with NKN (Neural Knowledge Network)...")
     
     # Get the repo root dynamically so this script works on any user's machine
     script_dir = Path(__file__).resolve().parent
@@ -16,21 +16,23 @@ def install_antigravity_knowledge():
         print("❌ Error: Could not find the 'skills' directory. Make sure this script is run from the 'scripts/' directory.")
         return
 
+    # 0. Initialize NKN (Neural Knowledge Network)
+    # We use the absolute path of nkn_tool.py so Claude and Gemini can always find it
+    nkn_tool_path = (source_dir / "scripts" / "nkn_tool.py").resolve()
+    print(f"🧠 Initializing Neural Knowledge Network at {nkn_tool_path}...")
+    
+    if nkn_tool_path.exists():
+        os.system(f"python3 {nkn_tool_path} init")
+    else:
+        print("⚠️ Warning: scripts/nkn_tool.py not found. NKN initialization skipped.")
+
     # Put the knowledge in the project level directory where the user executes the script
     target_project_dir = Path.cwd()
     ki_base_dir = target_project_dir / ".gemini/antigravity/knowledge"
     ki_base_dir.mkdir(parents=True, exist_ok=True)
 
-    # 0. Initialize NKN (Neural Knowledge Network)
-    print("\n🧠 Initializing Neural Knowledge Network...")
-    nkn_tool = source_dir / "scripts" / "nkn_tool.py"
-    if nkn_tool.exists():
-        os.system(f"python3 {nkn_tool} init")
-    else:
-        print("⚠️ Warning: scripts/nkn_tool.py not found. NKN initialization skipped.")
-
-    # 1. Convert Skills
-    print("\n📦 Converting skills to Knowledge Items...")
+    # 1. Process Skills
+    print("\n📦 Processing skills...")
     skills_dir = source_dir / "skills"
     if skills_dir.exists():
         for skill_path in skills_dir.iterdir():
@@ -39,7 +41,7 @@ def install_antigravity_knowledge():
                 ki_dir = ki_base_dir / f"skill_{skill_name}"
                 artifacts_dir = ki_dir / "artifacts"
                 
-                # Clean up existing KI if it exists to overwrite fresh
+                # Clean up existing KI
                 if ki_dir.exists():
                     shutil.rmtree(ki_dir)
                     
@@ -54,21 +56,23 @@ def install_antigravity_knowledge():
                 with open(ki_dir / "metadata.json", "w") as f:
                     json.dump(metadata, f, indent=2)
                 
+                # Copy and PATCH skills (replace {{NKN_TOOL_PATH}})
                 for item in skill_path.iterdir():
                     if item.is_file():
-                        shutil.copy2(item, artifacts_dir / item.name)
+                        content = item.read_text(errors='ignore')
+                        patched_content = content.replace("{{NKN_TOOL_PATH}}", str(nkn_tool_path))
+                        (artifacts_dir / item.name).write_text(patched_content)
                     elif item.is_dir():
                         shutil.copytree(item, artifacts_dir / item.name, dirs_exist_ok=True)
                         
+                # Handle templates
                 templates_dir = source_dir / "templates"
                 if templates_dir.exists():
-                    # Extract text from the skill artifacts
                     skill_text = ""
                     for item in artifacts_dir.rglob('*'):
                         if item.is_file() and item.suffix in ['.md', '.txt']:
                             skill_text += item.read_text(errors='ignore')
                     
-                    # Only copy templates that are actually referenced in this skill
                     copied_templates = False
                     for template_file in templates_dir.iterdir():
                         if template_file.is_file() and template_file.name in skill_text:
@@ -77,9 +81,9 @@ def install_antigravity_knowledge():
                                 copied_templates = True
                             shutil.copy2(template_file, artifacts_dir / "templates" / template_file.name)
                     
-                # Create the .agent/workflows wrapper for this skill
+                # Create the .agent/workflows wrapper for Antigravity
                 skill_desc = "Execute this skill according to its instructions."
-                skill_file_path = skill_path / "SKILL.md"
+                skill_file_path = artifacts_dir / "SKILL.md"
                 if skill_file_path.exists():
                     try:
                         lines = skill_file_path.read_text(errors='ignore').splitlines()
@@ -103,7 +107,7 @@ description: {skill_desc}
 **IF YOU PROCEED TO RESEARCH WITHOUT READING THE SKILL KNOWLEDGE FIRST, YOU ARE FAILING THIS MISSION.**
 
 1. **Phase 0: Memory Retrieval (NKN)**: Check the local Neural Knowledge Network for any relevant past decisions or architectural patterns before starting.
-   - Run: `python3 {nkn_tool} query --term "{skill_name}"`
+   - Run: `python3 {nkn_tool_path} query --term "{skill_name}"`
    - Incorporate any findings into your planning.
 
 2. **Phase 1: Skill Acquisition**: You must acquire the instructions for this workflow from your local knowledge directory.
@@ -113,10 +117,10 @@ description: {skill_desc}
 3. **Phase 2: Execution**: Follow the exact instructions provided in the SKILL.md file to execute this workflow completely.
 """
                 (workflows_dir / f"{skill_name}.md").write_text(workflow_content)
-                
-                print(f"  ✅ Installed KI & Workflow: {skill_name}")
-    # 2. Convert Agents
-    print("\n🤖 Converting agents to Knowledge Items...")
+                print(f"  ✅ Installed Skill: {skill_name}")
+
+    # 2. Process Agents
+    print("\n🤖 Processing agents...")
     agents_dir = source_dir / "agents"
     if agents_dir.exists():
         for agent_path in agents_dir.iterdir():
@@ -139,10 +143,16 @@ description: {skill_desc}
                 with open(ki_dir / "metadata.json", "w") as f:
                     json.dump(metadata, f, indent=2)
                 
-                shutil.copy2(agent_path, artifacts_dir / agent_path.name)
-                print(f"  ✅ Installed KI: {agent_name}")
+                # Copy and PATCH agents (replace {{NKN_TOOL_PATH}})
+                content = agent_path.read_text(errors='ignore')
+                patched_content = content.replace("{{NKN_TOOL_PATH}}", str(nkn_tool_path))
+                (artifacts_dir / agent_path.name).write_text(patched_content)
+                
+                print(f"  ✅ Installed Agent: {agent_name}")
 
-    print("\n🎉 Installation complete! Gemini/Antigravity will now recognize these workflows within this project scope.")
+    print("\n🎉 Installation complete!")
+    print(f"👉 To use this in Claude Code, make sure you ran: 'claude plugins add {source_dir}'")
+    print(f"👉 In Antigravity/Gemini, you can now run any skill or use the '/nkn-agent' workflow.")
 
 if __name__ == "__main__":
     install_antigravity_knowledge()

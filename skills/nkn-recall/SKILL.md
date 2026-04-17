@@ -2,7 +2,7 @@
 name: nkn-recall
 description: Query the Neural Knowledge Network (NKN) for past decisions, patterns, and reasoning relevant to the current task.
 argument-hint: [--term <search_query>]
-allowed-tools: Read, RunCommand
+allowed-tools: Bash, Read
 effort: low
 ---
 
@@ -19,7 +19,7 @@ Use this skill at the beginning of a task to fetch relevant past knowledge. This
 2. **Querying**:
    - Execute the following command:
      ```bash
-     python3 scripts/nkn_tool.py query --term "<keywords>"
+     python3 {{NKN_TOOL_PATH}} query --term "<keywords>"
      ```
 
 3. **Context Injection**:
@@ -27,4 +27,4 @@ Use this skill at the beginning of a task to fetch relevant past knowledge. This
    - Present the relevant findings to the current session context: *"According to the NKN, we previously decided to [Decision] because [Reasoning]."*
 
 > [!IMPORTANT]
-> This skill should be run **automatically** at the start of any complex workflow to ensure architectural consistency.
+> This skill is usually run **automatically** by the NKN Agent at the start of any complex workflow.
