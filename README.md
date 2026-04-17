@@ -26,15 +26,26 @@ Skills are reusable workflows invoked with a `/` command directly in Claude Code
 
 ### Agents
 
-Agents orchestrate multiple skills in sequence. They are auto-selected by Claude based on context, or accessible via `/agents`.
+Agents follow an **orchestrator → sub-agent** architecture. The `orchestrator-agent` is the only agent Claude auto-selects — it analyzes every user request and routes to the correct specialist sub-agent.
 
-| Agent | What it does |
+### Orchestrator (default)
+
+| Agent | Role |
 |---|---|
-| **planning-features-agent** | Runs `feature-discovery` then `plan-expert` back to back. Gathers all requirements, creates a ClickUp ticket, and immediately breaks it into an execution plan with subtasks. |
-| **design-system-setup-agent** | Runs `design-expert` → `design-system-docs` → `plan-expert` in sequence. Documents the design system, audits or plans Storybook, and creates all execution tasks in ClickUp or locally. |
-| **implement-task-agent** | Implements a task end-to-end. Resolves a ClickUp ticket or description (via `plan-expert`), reads the codebase, plans and writes the code, runs `code-review` and applies fixes, commits, and opens a PR via `create-pr`. |
+| **orchestrator-agent** | **Default entry point.** Handles any user request by classifying intent and routing to the right sub-agent. Always runs first; always responds last. |
 
-> **Tip:** Each agent has a matching skill (`/planning-features`, `/design-system-setup`) for direct slash-command invocation. Use the skill when you know exactly what you want; rely on the agent for automatic selection when you describe the goal naturally.
+### Sub-agents (invoked by orchestrator only)
+
+| Agent | Activated when |
+|---|---|
+| **planning-features-agent** | `new_feature` intent — coordinates discovery + planning end-to-end. |
+| **feature-discovery-agent** | Called by `planning-features-agent` — structured requirement interviews → FEATURE_SPEC + ClickUp ticket. |
+| **plan-expert-agent** | `quick_task`, `refactor`, or after discovery — decomposes specs into 8-section subtasks. |
+| **implement-task-agent** | `implementation` intent or after planning — writes code, runs review, commits, opens PR. |
+| **design-system-setup-agent** | `design_system` intent — design-expert → design-system-docs → plan-expert pipeline. |
+| **nkn-agent** | `knowledge_management` intent — recalls past decisions and persists new learnings to the NKN. |
+
+> **How to use:** Just describe what you want in natural language. The orchestrator routes automatically. Use `/` skills for direct, one-off invocations when you know exactly which step to run.
 
 ---
 
@@ -218,9 +229,13 @@ ai-toolbox/
 ├── .claude-plugin/
 │   └── plugin.json                      # Plugin metadata
 ├── agents/
-│   ├── planning-features-agent.md
-│   ├── design-system-setup-agent.md
-│   └── implement-task-agent.md
+│   ├── orchestrator-agent.md            # Default entry point — routes all intents
+│   ├── planning-features-agent.md       # Sub-agent: discovery + planning pipeline
+│   ├── feature-discovery-agent.md       # Sub-agent: requirement interviews
+│   ├── plan-expert-agent.md             # Sub-agent: technical decomposition
+│   ├── implement-task-agent.md          # Sub-agent: code + PR delivery
+│   ├── design-system-setup-agent.md     # Sub-agent: design system pipeline
+│   └── nkn-agent.md                     # Sub-agent: NKN memory management
 ├── skills/
 │   ├── a11y-auditor/
 │   │   └── SKILL.md
@@ -286,15 +301,26 @@ ai-toolbox/
    ```markdown
    ---
    name: my-agent
-   description: When Claude should automatically select this agent.
-   tools: AskUserQuestion, Read, Bash
-   skills: [skill-one, skill-two]
-   model: sonnet
+   description: >
+     Sub-agent: invoked only by the orchestrator-agent when [X intent] is detected.
+     [What it does]. Do not invoke directly.
+   model: claude-opus-4-6
+   color: blue
    effort: medium
+   tools:
+     - AskUserQuestion
+     - Read
+     - Bash
+   skills:
+     - skill-one
+     - skill-two
    ---
 
    Agent orchestration instructions...
    ```
+
+   **Important:** All agents in this plugin are sub-agents. Only `orchestrator-agent` is
+   auto-selected by Claude Code. New agents must be registered in the orchestrator's Routing Table.
 
 3. Use the `skills` frontmatter field to preload skills. This ensures skills execute inline in the agent's context rather than being delegated to a subagent.
 
