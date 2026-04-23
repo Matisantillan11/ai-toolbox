@@ -4,6 +4,7 @@ description: Audits code, components, or screenshots for accessibility barriers 
 argument-hint: [--level <A|AA|AAA>]
 allowed-tools: Read Grep Glob Bash
 effort: high
+disable-model-invocation: true
 ---
 
 # a11y-auditor

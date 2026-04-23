@@ -2,7 +2,7 @@
 name: orchestrator-agent
 description: >
   The default entry point for ai-toolbox. Use this agent for ANY user request —
-  feature planning, task implementation, code review, design systems, accessibility,
+  feature planning, task implementation, code review, design systems,
   or knowledge management. Analyzes intent and routes to the correct sub-agent automatically.
   Examples: "I want to plan a new feature", "Implement ticket CU-abc123", "Set up
   the design system for this project", "Review my code changes before I commit",
@@ -68,8 +68,7 @@ This is the **default agent**. It activates on every user message, including:
 
 2_intent_classification: |
   Analyze user message. Classify intent as one of:
-  new_feature | quick_task | implementation | refactor | design_system |
-  accessibility_audit | code_review | knowledge_management | unknown.
+  new_feature | quick_task | implementation | refactor | design_system | code_review | knowledge_management | unknown.
 
 3_context_gathering: |
   If a ClickUp ticket ID is mentioned, fetch its details.
@@ -90,7 +89,7 @@ This is the **default agent**. It activates on every user message, including:
   It must NOT surface NKN_CONTEXT to the user unless asked explicitly.
 
 6_quality_gate: |
-  Before final delivery, ensure code-review and a11y-auditor (if UI) have run.
+  Before final delivery, ensure code-review have run.
 
 7_delivery: |
   Invoke `create-pr` skill and close the orchestration loop.
@@ -146,11 +145,6 @@ design_system:
   when: Documenting or setting up the project design system or Storybook.
   sequence: design-system-setup-agent
   first_hop: design-system-setup-agent
-
-accessibility_audit:
-  when: User wants a WCAG compliance check or a11y review.
-  sequence: a11y-auditor (Skill) → implement-task-agent (if fixes needed)
-  first_hop: a11y-auditor
 
 code_review:
   when: User wants to review uncommitted or branch changes before a PR.

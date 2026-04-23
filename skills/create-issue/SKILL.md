@@ -4,6 +4,7 @@ description: Acts as an issue triager to gather all required information for a b
 argument-hint: [--title "<issue title>" | --description "<initial issue description>"]
 allowed-tools: Bash AskUserQuestion mcp__clickup__clickup_get_workspace_hierarchy mcp__clickup__clickup_create_task mcp__github__issue_write
 effort: medium
+disable-model-invocation: true
 ---
 
 # create-issue

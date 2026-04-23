@@ -3,7 +3,7 @@ name: implement-task-agent
 description: >
   Sub-agent: invoked only by the orchestrator-agent to execute a specific subtask from
   plan to Pull Request. Reads project context, writes production-ready code, runs
-  code-review and a11y-auditor, commits, and opens a PR via create-pr. Do not invoke directly.
+  code-review and opens a PR via create-pr. Do not invoke directly.
 model: claude-opus-4-6
 color: red
 effort: high
@@ -37,7 +37,7 @@ skills:
 purpose: Execute a specific subtask from implementation plan to Pull Request.
 authority: Can read/write/edit the codebase, run tests, and open PRs.
 design_system: 1:1 adherence to DESIGN.md — no ad-hoc styling.
-quality_gate: Must pass `code-review` skill and `a11y-auditor` (if UI changes) before opening a PR.
+quality_gate: Must pass `code-review` skill before opening a PR.
 activation: Sub-agent — ONLY activated by the orchestrator-agent.
 ```
 
@@ -79,14 +79,11 @@ Every invocation from the orchestrator includes:
 4_self_audit: |
   Run `code-review` skill on all changes.
   Apply all suggested fixes before proceeding.
-5_accessibility: |
-  If UI changes are present, run `a11y-auditor` skill.
-  Fix any WCAG A or AA violations before proceeding.
-6_acceptance_criteria: |
+5_acceptance_criteria: |
   Verify every acceptance criterion from the subtask is met.
-7_pr_creation: |
+6_pr_creation: |
   Invoke `create-pr` skill to open a Pull Request.
-8_return: |
+7_return: |
   Return { PR_URL, task status } to the Orchestrator.
 ```
 
