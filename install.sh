@@ -3,8 +3,8 @@ set -e
 
 REPO_URL="https://github.com/Matisantillan11/ai-toolbox.git"
 REPO_HTTP_URL="https://github.com/Matisantillan11/ai-toolbox"
-CLAUDE_MARKETPLACE_SOURCE="Matisantillan11/ai-toolbox"
-CLAUDE_MARKETPLACE_NAME="Matisantillan11/ai-toolbox"
+CLAUDE_MARKETPLACE_SOURCE="https://github.com/Matisantillan11/ai-toolbox"
+CLAUDE_MARKETPLACE_NAME="ai-toolbox"
 INSTALL_ROOT="$HOME/.ai-toolbox"
 CHECKOUT_DIR="$INSTALL_ROOT/repo"
 PROJECT_ROOT="$PWD"
@@ -372,8 +372,8 @@ cleanup_claude_assets() {
     fi
 
     log_step "Cleaning Claude plugin install..."
-    claude plugin disable "ai-toolbox@$CLAUDE_MARKETPLACE_NAME" --scope user >/dev/null 2>&1 || true
-    claude plugin uninstall "ai-toolbox@$CLAUDE_MARKETPLACE_NAME" --scope user >/dev/null 2>&1 || true
+    claude plugins disable "ai-toolbox@$CLAUDE_MARKETPLACE_NAME" --scope user >/dev/null 2>&1 || true
+    claude plugins uninstall "ai-toolbox@$CLAUDE_MARKETPLACE_NAME" --scope user >/dev/null 2>&1 || true
 }
 
 force_clean_selected_targets() {
@@ -429,12 +429,12 @@ install_claude() {
 
     require_command claude
 
-    if ! claude plugin marketplace add "$CLAUDE_MARKETPLACE_SOURCE"; then
-        claude plugin marketplace update "$CLAUDE_MARKETPLACE_NAME" || true
+    if ! claude plugins marketplace add "$CLAUDE_MARKETPLACE_SOURCE"; then
+        claude plugins marketplace update "$CLAUDE_MARKETPLACE_NAME" || true
     fi
 
-    if ! claude plugin install "$CLAUDE_MARKETPLACE_NAME" --scope user; then
-        claude plugin enable "$CLAUDE_MARKETPLACE_NAME" --scope user
+    if ! claude plugins install "$CLAUDE_MARKETPLACE_NAME" --scope user; then
+        claude plugins enable "$CLAUDE_MARKETPLACE_NAME" --scope user
     fi
 
     log_success "Claude install complete."
