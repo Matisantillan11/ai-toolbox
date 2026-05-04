@@ -14,6 +14,7 @@ FORCE_CLEAN=0
 INSTALL_SUCCESSES=()
 INSTALL_FAILURES=()
 CHECKBOX_OPTIONS=(claude antigravity opencode codex)
+CHECKBOX_LABELS=(Claude Antigravity OpenCode Codex)
 CHECKBOX_SELECTED=(0 0 0 0)
 
 print_help() {
@@ -154,15 +155,29 @@ EOF
 
 render_checkbox_menu() {
     local current_index="$1"
-    local index marker prefix option_name
+    local index marker prefix option_name selected_count
 
-    printf '\033[H\033[2J'
+    if command -v tput >/dev/null 2>&1; then
+        tput clear
+        tput cup 0 0
+    else
+        printf '\033[H\033[2J'
+    fi
+
+    selected_count=0
+    for index in "${!CHECKBOX_SELECTED[@]}"; do
+        if [ "${CHECKBOX_SELECTED[$index]}" -eq 1 ]; then
+            selected_count=$((selected_count + 1))
+        fi
+    done
+
     echo "Choose install targets"
     echo "Use ↑/↓ to move, space to toggle, enter to confirm."
+    echo "Selected: $selected_count"
     echo
 
     for index in "${!CHECKBOX_OPTIONS[@]}"; do
-        option_name="${CHECKBOX_OPTIONS[$index]}"
+        option_name="${CHECKBOX_LABELS[$index]}"
         if [ "${CHECKBOX_SELECTED[$index]}" -eq 1 ]; then
             marker="[x]"
         else
