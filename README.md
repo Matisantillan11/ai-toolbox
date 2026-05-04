@@ -1,6 +1,6 @@
-# AI Toolbox — Claude Code Plugin
+# AI Toolbox — Claude Code Plugin + OpenCode Pack
 
-A Claude Code plugin with a curated set of skills and agents for software teams. Covers accessibility auditing, code review, project initialization, design system documentation, and end-to-end feature planning workflows backed by ClickUp.
+A Claude Code plugin and OpenCode-compatible pack with a curated set of skills and agents for software teams. Covers accessibility auditing, code review, project initialization, design system documentation, and end-to-end feature planning workflows backed by ClickUp.
 
 ---
 
@@ -26,7 +26,9 @@ Skills are reusable workflows invoked with a `/` command directly in Claude Code
 
 ### Agents
 
-Agents follow an **orchestrator → sub-agent** architecture. The `orchestrator-agent` is the only agent Claude auto-selects — it analyzes every user request and routes to the correct specialist sub-agent.
+Agents follow an **orchestrator → sub-agent** architecture in Claude Code. The `orchestrator-agent` is the only agent Claude auto-selects — it analyzes every user request and routes to the correct specialist sub-agent.
+
+In OpenCode, the same agents are installed as optional agents without pinning them to a specific model. Skills are also installed separately, so the user can choose the most suitable agent or skill for the job instead of inheriting Claude's auto-routing behavior.
 
 ### Orchestrator (default)
 
@@ -157,29 +159,24 @@ Notes:
 - The value for `--dir` must be a local directory containing `learn-tool/package.json`.
 - A GitHub URL cannot be used here because MCP must launch a local process.
 
-### Option 1 — Install directly via Claude Code (no cloning required)
+### Option 1 — Install directly in Claude Code through the marketplace
 
-Point Claude Code to the GitHub repository URL and it will install the plugin automatically:
+Add the marketplace, then install the plugin from it:
 
 ```bash
-claude plugins add https://github.com/Matisantillan11/ai-toolbox
+claude plugin marketplace add Matisantillan11/ai-toolbox
+claude plugin install ai-toolbox@matisantillan11-ai-toolbox --scope user
 ```
 
-Then enable it:
+If the marketplace already exists, refresh it first:
 
 ```bash
-claude plugins enable ai-toolbox
-```
-
-Claude Code fetches the plugin from GitHub and keeps it available. To update to the latest version at any time:
-
-```bash
-claude plugins update ai-toolbox
+claude plugin marketplace update matisantillan11-ai-toolbox
 ```
 
 ---
 
-### Option 2 — Clone and install locally
+### Option 2 — Clone locally for development
 
 Use this option if you want to modify skills or develop your own on top of this plugin.
 
@@ -191,22 +188,13 @@ Pick a permanent location on your machine — this folder needs to stay there as
 git clone https://github.com/Matisantillan11/ai-toolbox ~/tools/ai-toolbox
 ```
 
-**2. Register the plugin with Claude Code**
+**2. Load the plugin locally while developing**
 
 ```bash
-claude plugins add ~/tools/ai-toolbox
-claude plugins enable ai-toolbox
+claude --plugin-dir ~/tools/ai-toolbox
 ```
 
-Or open `~/.claude/settings.json` and add it manually:
-
-```json
-{
-  "enabledPlugins": {
-    "ai-toolbox": true
-  }
-}
-```
+This loads the local checkout directly for the current Claude session, which is the safest path while iterating on plugin files.
 
 **3. Keep it up to date**
 
@@ -218,17 +206,42 @@ cd ~/tools/ai-toolbox && git pull
 
 ---
 
-### Option 3 — Install for Gemini / Antigravity
+### Option 3 — Unified Installer for Claude, Antigravity, and OpenCode
 
-If you want to use these skills directly in Gemini/Antigravity instead of Claude, you can instantly inject the Knowledge Items (KIs) into your project by running the official installer.
+Use the single installer from the root of the project where you want `.mcp.json` configured. It will:
+- maintain a local ai-toolbox checkout in `~/.ai-toolbox/repo`
+- install `learn-tool` dependencies with `pnpm`
+- write or update `.mcp.json` so `ai__toolbox__nkn` points at that local checkout
+- install the selected Claude, Antigravity, and/or OpenCode assets
 
-Run this single command from the root of any project:
+Interactive mode:
 
 ```bash
 bash <(curl -s https://raw.githubusercontent.com/Matisantillan11/ai-toolbox/main/install.sh)
 ```
 
-This will safely download the AI-Toolbox and link the skills as native KIs in a `.gemini/` folder locally, keeping your project portable. Just ask Gemini *"Run the init-project skill"* to test it!
+Non-interactive examples:
+
+```bash
+bash <(curl -s https://raw.githubusercontent.com/Matisantillan11/ai-toolbox/main/install.sh) --targets claude
+bash <(curl -s https://raw.githubusercontent.com/Matisantillan11/ai-toolbox/main/install.sh) --targets antigravity,opencode
+bash <(curl -s https://raw.githubusercontent.com/Matisantillan11/ai-toolbox/main/install.sh) --targets all
+bash <(curl -s https://raw.githubusercontent.com/Matisantillan11/ai-toolbox/main/install.sh) --targets opencode --global-opencode
+```
+
+Target behavior:
+- `claude`: adds the ai-toolbox marketplace and installs `ai-toolbox@matisantillan11-ai-toolbox`
+- `antigravity`: installs native Knowledge Items into `.gemini/`
+- `opencode`: installs skills into `.opencode/skills/` and agents into `.opencode/agents/`
+
+MCP behavior:
+- `learn-tool` is installed locally at `~/.ai-toolbox/repo/learn-tool`
+- `.mcp.json` in the current project is updated with the `ai__toolbox__nkn` server entry
+
+Important:
+- OpenCode agents are exported without pinning a model.
+- OpenCode agents do not preload skills.
+- This is intentional so users can choose the right model, agent, and skill per task.
 
 ---
 
