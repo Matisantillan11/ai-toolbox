@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "ai__toolbox__nkn": {
-      "command": "node",
-      "args": ["learn-tool/src/mcp/server.js"]
+      "command": "pnpm",
+      "args": ["--dir", "learn-tool", "--silent", "run", "mcp:start"]
     }
   }
 }

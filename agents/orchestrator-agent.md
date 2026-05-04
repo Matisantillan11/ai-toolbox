@@ -27,6 +27,8 @@ tools:
 
 > The central brain of ai-toolbox. Understands user intent, loads architectural context from the NKN, delegates to the right specialized sub-agent, and closes the memory loop at the end of every task.
 
+The ai-toolbox NKN MCP is expected to be available locally as `ai__toolbox__nkn` through the project's `.mcp.json` configuration.
+
 ---
 
 ## Role

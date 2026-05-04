@@ -9,6 +9,8 @@
     "ai-toolbox-nkn": "./src/cli/nkn.js"
   },
   "scripts": {
+    "start": "node src/mcp/server.js",
+    "mcp:start": "node src/mcp/server.js",
     "test": "AI_TOOLBOX_NKN_SILENT=1 node --test",
     "check": "node --check src/cli/nkn.js && node --check src/mcp/server.js && node --check src/nkn/config.js && node --check src/nkn/db.js && node --check src/nkn/logger.js && node --check src/nkn/service.js"
   },

@@ -60,13 +60,18 @@ Agents follow an **orchestrator → sub-agent** architecture. The `orchestrator-
 
 ### NKN MCP runtime
 
-This repository now ships a self-contained Node.js workspace under `learn-tool/` for NKN access. It contains the MCP server, local CLI, SQLite service layer, and tests. From the repo root:
+This repository ships a self-contained Node.js workspace under `learn-tool/` for NKN access. It contains the MCP server, local CLI, SQLite service layer, and tests. The MCP server is meant to be started as a local process through `pnpm`, not from a GitHub URL.
 
 ```bash
 cd learn-tool && pnpm install
 ```
 
 Claude Code can load the included `.mcp.json` project config so agents can call `mcp__ai__toolbox__nkn__recall`, `mcp__ai__toolbox__nkn__learn`, `mcp__ai__toolbox__nkn__update`, and `mcp__ai__toolbox__nkn__delete` directly. The SQLite database stays at `~/.ai-toolbox/nkn.db` by default, or you can override it with `AI_TOOLBOX_NKN_DB_PATH`.
+
+Important:
+- MCP server entries must point to a local checked-out copy of this repository.
+- Do not use a GitHub URL like `https://github.com/Matisantillan11/ai-toolbox/learn-tool` in `.mcp.json`.
+- Prefer an absolute filesystem path when configuring another project.
 
 ### Using learn-tool
 
@@ -86,19 +91,19 @@ cd learn-tool && pnpm test
 Initialize the SQLite database manually if needed:
 
 ```bash
-pnpm learn-tool/src/cli/nkn.js init
+node learn-tool/src/cli/nkn.js init
 ```
 
 Query past learnings from the CLI:
 
 ```bash
- pnpm learn-tool/src/cli/nkn.js query --term "auth flow"
+node learn-tool/src/cli/nkn.js query --term "auth flow"
 ```
 
 Persist a learning from the CLI:
 
 ```bash
-pnpm learn-tool/src/cli/nkn.js log \
+node learn-tool/src/cli/nkn.js log \
   --project "ai-toolbox" \
   --topic "Architecture" \
   --decision "Use the learn-tool MCP for NKN access" \
@@ -108,7 +113,7 @@ pnpm learn-tool/src/cli/nkn.js log \
 Update an existing learning from the CLI:
 
 ```bash
-pnpm learn-tool/src/cli/nkn.js update \
+node learn-tool/src/cli/nkn.js update \
   --id 1 \
   --decision "Use the ai-toolbox NKN MCP for memory access"
 ```
@@ -116,16 +121,41 @@ pnpm learn-tool/src/cli/nkn.js update \
 Delete an existing learning from the CLI:
 
 ```bash
-pnpm learn-tool/src/cli/nkn.js delete --id 1
+node learn-tool/src/cli/nkn.js delete --id 1
 ```
 
-Start the MCP server directly:
+Start the MCP server through the package script:
 
 ```bash
-pnpm learn-tool/src/mcp/server.js
+cd learn-tool && pnpm run mcp:start
 ```
 
 Sensitive values such as decision bodies, reasoning text, and raw payloads are redacted from logs by default. The ai-toolbox guidance now treats learning as automatic, and stale memories can also be updated or deleted automatically through the MCP tools.
+
+If you want to use this MCP from another project, first make sure this repository exists locally on disk and `learn-tool` dependencies are installed. Then configure that other project's `.mcp.json` like this:
+
+```json
+{
+  "mcpServers": {
+    "ai__toolbox__nkn": {
+      "command": "pnpm",
+      "args": [
+        "--dir",
+        "/Users/matisantillandev/Desktop/Projects/ai-toolbox/learn-tool",
+        "--silent",
+        "run",
+        "mcp:start"
+      ]
+    }
+  }
+}
+```
+
+Notes:
+- Replace the path above with the real absolute path on your machine.
+- Avoid `~` in `.mcp.json`; many runners do not expand it reliably.
+- The value for `--dir` must be a local directory containing `learn-tool/package.json`.
+- A GitHub URL cannot be used here because MCP must launch a local process.
 
 ### Option 1 — Install directly via Claude Code (no cloning required)
 
