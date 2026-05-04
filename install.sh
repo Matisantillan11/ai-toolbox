@@ -396,7 +396,21 @@ force_clean_selected_targets() {
     done
 }
 
-configure_learn_tool_mcp() {
+configure_client_mcp() {
+    local client="$1"
+    local config_path="$2"
+    local config_format="$3"
+
+    log_step "Configuring $client MCP..."
+    python3 "$CHECKOUT_DIR/scripts/configure_ai_toolbox_mcp.py" \
+        --config "$config_path" \
+        --format "$config_format" \
+        --repo-root "$CHECKOUT_DIR"
+}
+
+configure_selected_mcp() {
+    local configured=0
+
     require_command python3
     require_command pnpm
     ensure_repo_checkout
@@ -405,22 +419,29 @@ configure_learn_tool_mcp() {
     log_step "Installing learn-tool dependencies..."
     pnpm --dir "$CHECKOUT_DIR/learn-tool" install --silent
 
-    log_step "Configuring project MCP..."
-    python3 "$CHECKOUT_DIR/scripts/configure_ai_toolbox_mcp.py" \
-        --config "$PROJECT_ROOT/.mcp.json" \
-        --format json \
-        --repo-root "$CHECKOUT_DIR"
-}
+    if contains_target claude "${TARGETS[@]}"; then
+        configure_client_mcp "Claude" "$HOME/.claude.json" "claude"
+        configured=1
+    fi
 
-configure_codex_mcp() {
-    require_command python3
-    ensure_repo_checkout
+    if contains_target antigravity "${TARGETS[@]}"; then
+        configure_client_mcp "Antigravity" "$HOME/.gemini/antigravity/mcp_config.json" "antigravity"
+        configured=1
+    fi
 
-    log_step "Configuring Codex MCP..."
-    python3 "$CHECKOUT_DIR/scripts/configure_ai_toolbox_mcp.py" \
-        --config "$PROJECT_ROOT/.codex/config.toml" \
-        --format codex \
-        --repo-root "$CHECKOUT_DIR"
+    if contains_target opencode "${TARGETS[@]}"; then
+        configure_client_mcp "OpenCode" "$HOME/.config/opencode/opencode.json" "opencode"
+        configured=1
+    fi
+
+    if contains_target codex "${TARGETS[@]}"; then
+        configure_client_mcp "Codex" "$HOME/.codex/config.toml" "codex"
+        configured=1
+    fi
+
+    if [ "$configured" -eq 0 ]; then
+        log_warn "No MCP target selected."
+    fi
 }
 
 install_claude() {
@@ -562,11 +583,7 @@ log_info "Selected targets: ${TARGETS[*]}"
 
 force_clean_selected_targets
 
-configure_learn_tool_mcp
-
-if contains_target codex "${TARGETS[@]}"; then
-    configure_codex_mcp
-fi
+configure_selected_mcp
 
 for target in "${TARGETS[@]}"; do
     run_target_install "$target"

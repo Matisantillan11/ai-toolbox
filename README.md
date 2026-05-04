@@ -68,12 +68,12 @@ This repository ships a self-contained Node.js workspace under `learn-tool/` for
 cd learn-tool && pnpm install
 ```
 
-Claude Code can load the included `.mcp.json` project config so agents can call `mcp__ai__toolbox__nkn__recall`, `mcp__ai__toolbox__nkn__learn`, `mcp__ai__toolbox__nkn__update`, and `mcp__ai__toolbox__nkn__delete` directly. The SQLite database stays at `~/.ai-toolbox/nkn.db` by default, or you can override it with `AI_TOOLBOX_NKN_DB_PATH`.
+Supported clients can load the ai-toolbox MCP from their user config so agents can call `mcp__ai__toolbox__nkn__recall`, `mcp__ai__toolbox__nkn__learn`, `mcp__ai__toolbox__nkn__update`, and `mcp__ai__toolbox__nkn__delete` directly. The SQLite database stays at `~/.ai-toolbox/nkn.db` by default, or you can override it with `AI_TOOLBOX_NKN_DB_PATH`.
 
 Important:
 - MCP server entries must point to a local checked-out copy of this repository.
-- Do not use a GitHub URL like `https://github.com/Matisantillan11/ai-toolbox/learn-tool` in `.mcp.json`.
-- Prefer an absolute filesystem path when configuring another project.
+- Do not use a GitHub URL like `https://github.com/Matisantillan11/ai-toolbox/learn-tool` in client config.
+- Prefer an absolute filesystem path when configuring a client manually.
 
 ### Using learn-tool
 
@@ -134,7 +134,9 @@ cd learn-tool && pnpm run mcp:start
 
 Sensitive values such as decision bodies, reasoning text, and raw payloads are redacted from logs by default. The ai-toolbox guidance now treats learning as automatic, and stale memories can also be updated or deleted automatically through the MCP tools.
 
-If you want to use this MCP from another project, first make sure this repository exists locally on disk and `learn-tool` dependencies are installed. Then configure that other project's `.mcp.json` like this:
+If you want to configure this MCP manually, first make sure this repository exists locally on disk and `learn-tool` dependencies are installed. Then add the server to the relevant user config:
+
+Claude / Antigravity style JSON:
 
 ```json
 {
@@ -153,9 +155,38 @@ If you want to use this MCP from another project, first make sure this repositor
 }
 ```
 
+OpenCode JSON:
+
+```json
+{
+  "mcp": {
+    "ai__toolbox__nkn": {
+      "type": "local",
+      "command": [
+        "pnpm",
+        "--dir",
+        "/Users/matisantillandev/Desktop/Projects/ai-toolbox/learn-tool",
+        "--silent",
+        "run",
+        "mcp:start"
+      ],
+      "enabled": true
+    }
+  }
+}
+```
+
+Codex TOML:
+
+```toml
+[mcp_servers.ai__toolbox__nkn]
+command = "pnpm"
+args = ["--dir", "/Users/matisantillandev/Desktop/Projects/ai-toolbox/learn-tool", "--silent", "run", "mcp:start"]
+```
+
 Notes:
 - Replace the path above with the real absolute path on your machine.
-- Avoid `~` in `.mcp.json`; many runners do not expand it reliably.
+- Avoid `~` in config paths or command arguments; many runners do not expand it reliably.
 - The value for `--dir` must be a local directory containing `learn-tool/package.json`.
 - A GitHub URL cannot be used here because MCP must launch a local process.
 
@@ -208,11 +239,13 @@ cd ~/tools/ai-toolbox && git pull
 
 ### Option 3 — Unified Installer for Claude, Antigravity, OpenCode, and Codex
 
-Use the single installer from the root of the project where you want `.mcp.json` configured. It will:
+Use the single installer from the root of the project where you want project-local assets installed. It will:
 - maintain a local ai-toolbox checkout in `~/.ai-toolbox/repo`
 - install `learn-tool` dependencies with `pnpm`
-- write or update `.mcp.json` so `ai__toolbox__nkn` points at that local checkout
-- write or update `.codex/config.toml` with the same `ai__toolbox__nkn` server when Codex is selected
+- write or update `~/.claude.json` when Claude is selected
+- write or update `~/.config/opencode/opencode.json` when OpenCode is selected
+- write or update `~/.gemini/antigravity/mcp_config.json` when Antigravity is selected
+- write or update `~/.codex/config.toml` when Codex is selected
 - install the selected Claude, Antigravity, OpenCode, and/or Codex assets
 
 Interactive mode:
@@ -238,12 +271,14 @@ Target behavior:
 - `claude`: adds the ai-toolbox marketplace and installs `ai-toolbox@matisantillan11-ai-toolbox`
 - `antigravity`: installs native Knowledge Items into `.gemini/`
 - `opencode`: installs skills into `.opencode/skills/` and agents into `.opencode/agents/`
-- `codex`: installs skills into `.agents/skills/`, exports custom agents into `.codex/agents/`, and configures project-local Codex MCP in `.codex/config.toml`
+- `codex`: installs skills into `.agents/skills/`, exports custom agents into `.codex/agents/`, and configures Codex MCP in `~/.codex/config.toml`
 
 MCP behavior:
 - `learn-tool` is installed locally at `~/.ai-toolbox/repo/learn-tool`
-- `.mcp.json` in the current project is updated with the `ai__toolbox__nkn` server entry
-- when `codex` is selected, `.codex/config.toml` is also updated with the same server as a Codex MCP entry
+- when `claude` is selected, `~/.claude.json` is updated with the `ai__toolbox__nkn` server entry
+- when `opencode` is selected, `~/.config/opencode/opencode.json` is updated with the same server in the OpenCode `mcp` section
+- when `antigravity` is selected, `~/.gemini/antigravity/mcp_config.json` is updated with the same server
+- when `codex` is selected, `~/.codex/config.toml` is updated with the same server as a Codex MCP entry
 
 Important:
 - OpenCode agents are exported without pinning a model.

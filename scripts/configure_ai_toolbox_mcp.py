@@ -21,7 +21,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--format",
         required=True,
-        choices=["json", "codex"],
+        choices=["claude", "opencode", "antigravity", "codex"],
         help="Config format to update.",
     )
     return parser.parse_args()
@@ -48,7 +48,7 @@ def load_json_config(path: Path) -> dict:
     return data
 
 
-def update_json_config(config_path: Path, repo_root: Path) -> None:
+def update_claude_like_json_config(config_path: Path, repo_root: Path) -> None:
     config = load_json_config(config_path)
     mcp_servers = config.get("mcpServers")
 
@@ -61,6 +61,25 @@ def update_json_config(config_path: Path, repo_root: Path) -> None:
     mcp_servers["ai__toolbox__nkn"] = {
         "command": "pnpm",
         "args": ["--dir", str(learn_tool_dir(repo_root)), "--silent", "run", "mcp:start"],
+    }
+
+    config_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
+
+
+def update_opencode_config(config_path: Path, repo_root: Path) -> None:
+    config = load_json_config(config_path)
+    mcp = config.get("mcp")
+
+    if mcp is None:
+        mcp = {}
+        config["mcp"] = mcp
+    elif not isinstance(mcp, dict):
+        raise ValueError(f"Expected 'mcp' to be an object in {config_path}")
+
+    mcp["ai__toolbox__nkn"] = {
+        "type": "local",
+        "command": ["pnpm", "--dir", str(learn_tool_dir(repo_root)), "--silent", "run", "mcp:start"],
+        "enabled": True,
     }
 
     config_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
@@ -105,9 +124,12 @@ def main() -> None:
 
     config_path.parent.mkdir(parents=True, exist_ok=True)
 
-    if args.format == "json":
+    if args.format in {"claude", "antigravity"}:
         print(f"🔧 Configuring AI Toolbox MCP JSON config at {config_path}...")
-        update_json_config(config_path, repo_root)
+        update_claude_like_json_config(config_path, repo_root)
+    elif args.format == "opencode":
+        print(f"🔧 Configuring AI Toolbox MCP OpenCode config at {config_path}...")
+        update_opencode_config(config_path, repo_root)
     else:
         print(f"🔧 Configuring AI Toolbox MCP Codex config at {config_path}...")
         update_codex_config(config_path, repo_root)
