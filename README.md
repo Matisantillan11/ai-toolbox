@@ -206,13 +206,14 @@ cd ~/tools/ai-toolbox && git pull
 
 ---
 
-### Option 3 — Unified Installer for Claude, Antigravity, and OpenCode
+### Option 3 — Unified Installer for Claude, Antigravity, OpenCode, and Codex
 
 Use the single installer from the root of the project where you want `.mcp.json` configured. It will:
 - maintain a local ai-toolbox checkout in `~/.ai-toolbox/repo`
 - install `learn-tool` dependencies with `pnpm`
 - write or update `.mcp.json` so `ai__toolbox__nkn` points at that local checkout
-- install the selected Claude, Antigravity, and/or OpenCode assets
+- write or update `.codex/config.toml` with the same `ai__toolbox__nkn` server when Codex is selected
+- install the selected Claude, Antigravity, OpenCode, and/or Codex assets
 
 Interactive mode:
 
@@ -225,6 +226,7 @@ Non-interactive examples:
 ```bash
 bash <(curl -s https://raw.githubusercontent.com/Matisantillan11/ai-toolbox/main/install.sh) --targets claude
 bash <(curl -s https://raw.githubusercontent.com/Matisantillan11/ai-toolbox/main/install.sh) --targets antigravity,opencode
+bash <(curl -s https://raw.githubusercontent.com/Matisantillan11/ai-toolbox/main/install.sh) --targets codex
 bash <(curl -s https://raw.githubusercontent.com/Matisantillan11/ai-toolbox/main/install.sh) --targets all
 bash <(curl -s https://raw.githubusercontent.com/Matisantillan11/ai-toolbox/main/install.sh) --targets opencode --global-opencode
 ```
@@ -233,14 +235,18 @@ Target behavior:
 - `claude`: adds the ai-toolbox marketplace and installs `ai-toolbox@matisantillan11-ai-toolbox`
 - `antigravity`: installs native Knowledge Items into `.gemini/`
 - `opencode`: installs skills into `.opencode/skills/` and agents into `.opencode/agents/`
+- `codex`: installs skills into `.agents/skills/`, exports custom agents into `.codex/agents/`, and configures project-local Codex MCP in `.codex/config.toml`
 
 MCP behavior:
 - `learn-tool` is installed locally at `~/.ai-toolbox/repo/learn-tool`
 - `.mcp.json` in the current project is updated with the `ai__toolbox__nkn` server entry
+- when `codex` is selected, `.codex/config.toml` is also updated with the same server as a Codex MCP entry
 
 Important:
 - OpenCode agents are exported without pinning a model.
 - OpenCode agents do not preload skills.
+- Codex custom agents are exported without pinning a model.
+- Codex does not auto-run these agents; they stay available for explicit use or delegation.
 - This is intentional so users can choose the right model, agent, and skill per task.
 
 ---

@@ -16,7 +16,7 @@ print_help() {
 Usage: install.sh [options]
 
 Options:
-  --targets <list>       Comma-separated targets: claude,antigravity,opencode,all
+  --targets <list>       Comma-separated targets: claude,antigravity,opencode,codex,all
   --global-opencode      Install OpenCode assets into ~/.config/opencode
   --help                 Show this help message
 
@@ -24,6 +24,7 @@ Examples:
   bash install.sh
   bash install.sh --targets claude
   bash install.sh --targets antigravity,opencode
+  bash install.sh --targets codex
   bash install.sh --targets all --global-opencode
 EOF
 }
@@ -51,22 +52,22 @@ normalize_targets() {
 
         case "$item" in
             all)
-                expanded=(claude antigravity opencode)
+                expanded=(claude antigravity opencode codex)
                 ;;
-            claude|antigravity|opencode)
+            claude|antigravity|opencode|codex)
                 if ! contains_target "$item" "${expanded[@]}"; then
                     expanded+=("$item")
                 fi
                 ;;
             *)
-                echo "Error: unknown target '$item'. Use claude, antigravity, opencode, or all."
+                echo "Error: unknown target '$item'. Use claude, antigravity, opencode, codex, or all."
                 exit 1
                 ;;
         esac
     done
 
     if contains_target all "${parts[@]}"; then
-        TARGETS=(claude antigravity opencode)
+        TARGETS=(claude antigravity opencode codex)
     else
         TARGETS=("${expanded[@]}")
     fi
@@ -78,7 +79,8 @@ Choose install targets:
   1. Claude
   2. Antigravity
   3. OpenCode
-  4. All
+  4. Codex
+  5. All
 
 Enter one or more values separated by commas (example: 1,3)
 EOF
@@ -89,7 +91,8 @@ EOF
         1) TARGETS=(claude) ;;
         2) TARGETS=(antigravity) ;;
         3) TARGETS=(opencode) ;;
-        4) TARGETS=(claude antigravity opencode) ;;
+        4) TARGETS=(codex) ;;
+        5) TARGETS=(claude antigravity opencode codex) ;;
         *)
             local mapped=()
             local part
@@ -100,7 +103,8 @@ EOF
                     1) mapped+=(claude) ;;
                     2) mapped+=(antigravity) ;;
                     3) mapped+=(opencode) ;;
-                    4) mapped=(claude antigravity opencode) ;;
+                    4) mapped+=(codex) ;;
+                    5) mapped=(claude antigravity opencode codex) ;;
                     *)
                         echo "Error: invalid selection '$part'."
                         exit 1
@@ -160,8 +164,20 @@ configure_learn_tool_mcp() {
     pnpm --dir "$CHECKOUT_DIR/learn-tool" install --silent
 
     echo "Configuring project MCP..."
-    python3 "$CHECKOUT_DIR/scripts/configure_mcp.py" \
+    python3 "$CHECKOUT_DIR/scripts/configure_ai_toolbox_mcp.py" \
         --config "$PROJECT_ROOT/.mcp.json" \
+        --format json \
+        --repo-root "$CHECKOUT_DIR"
+}
+
+configure_codex_mcp() {
+    require_command python3
+    ensure_repo_checkout
+
+    echo "Configuring Codex MCP..."
+    python3 "$CHECKOUT_DIR/scripts/configure_ai_toolbox_mcp.py" \
+        --config "$PROJECT_ROOT/.codex/config.toml" \
+        --format codex \
         --repo-root "$CHECKOUT_DIR"
 }
 
@@ -212,6 +228,22 @@ install_opencode() {
     echo "OpenCode install complete."
 }
 
+install_codex() {
+    echo
+    echo "Installing Codex assets..."
+    require_command python3
+    ensure_repo_checkout
+
+    local install_script="$CHECKOUT_DIR/scripts/install_codex_assets.py"
+    if [ ! -f "$install_script" ]; then
+        echo "Error: Could not locate the Codex installation script."
+        exit 1
+    fi
+
+    python3 "$install_script"
+    echo "Codex install complete."
+}
+
 while [ $# -gt 0 ]; do
     case "$1" in
         --targets)
@@ -252,11 +284,16 @@ echo "Selected targets: ${TARGETS[*]}"
 
 configure_learn_tool_mcp
 
+if contains_target codex "${TARGETS[@]}"; then
+    configure_codex_mcp
+fi
+
 for target in "${TARGETS[@]}"; do
     case "$target" in
         claude) install_claude ;;
         antigravity) install_antigravity ;;
         opencode) install_opencode ;;
+        codex) install_codex ;;
     esac
 done
 
