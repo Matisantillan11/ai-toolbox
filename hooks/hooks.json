@@ -1,0 +1,14 @@
+{
+  "hooks": [
+    {
+      "event": "SessionStart",
+      "command": "node learn-tool/src/cli/nkn.js init >/dev/null 2>&1 || true && echo '--- NKN MCP READY FOR RECALL ---'",
+      "description": "Initialize the SQLite-backed NKN store for the MCP server."
+    },
+    {
+      "event": "UserPromptSubmit",
+      "command": "echo 'INSTRUCTION: Always use the orchestrator-agent. For significant decisions, automatically decide whether to call mcp__ai__toolbox__nkn__learn.'",
+      "description": "Force orchestration and NKN awareness."
+    }
+  ]
+}

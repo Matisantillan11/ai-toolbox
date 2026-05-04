@@ -1,0 +1,19 @@
+{
+  "name": "ai-toolbox-learn-tool",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "SQLite-backed NKN MCP and CLI for ai-toolbox",
+  "bin": {
+    "ai-toolbox-nkn-mcp": "./src/mcp/server.js",
+    "ai-toolbox-nkn": "./src/cli/nkn.js"
+  },
+  "scripts": {
+    "test": "AI_TOOLBOX_NKN_SILENT=1 node --test",
+    "check": "node --check src/cli/nkn.js && node --check src/mcp/server.js && node --check src/nkn/config.js && node --check src/nkn/db.js && node --check src/nkn/logger.js && node --check src/nkn/service.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.3",
+    "zod": "^3.24.4"
+  }
+}

@@ -16,12 +16,11 @@ tools:
   - AskUserQuestion
   - Read
   - Bash
+  - mcp__ai__toolbox__nkn__recall
+  - mcp__ai__toolbox__nkn__learn
   - mcp__clickup__clickup_get_workspace_hierarchy
   - mcp__clickup__clickup_create_task
   - mcp__clickup__clickup_get_task
-skills:
-  - nkn-recall
-  - nkn-learn
 ---
 
 # Orchestrator Agent
@@ -54,7 +53,7 @@ This is the **default agent**. It activates on every user message, including:
 
 ```yaml
 1_nkn_recall: |
-  At the start of EVERY task, run `nkn-recall` skill.
+  At the start of EVERY task, call `mcp__ai__toolbox__nkn__recall`.
   Store the result as NKN_CONTEXT — do NOT print or inject it into the conversation.
   Query terms relevant to the current intent (e.g. "auth flow", "design tokens", "state management").
   NKN_CONTEXT may include any of the following, scoped to what's relevant:
@@ -96,7 +95,7 @@ This is the **default agent**. It activates on every user message, including:
   Report outcome to the user.
 
 8_nkn_learn: |
-  After EVERY completed task, run the NKN learning cycle:
+  After EVERY completed task, decide automatically whether to store new learning and call `mcp__ai__toolbox__nkn__learn` when appropriate:
 
   a) PROPOSE new learning if any of these conditions are true:
      - An architectural decision was made (e.g. monorepo split, API versioning strategy).
@@ -106,14 +105,13 @@ This is the **default agent**. It activates on every user message, including:
      - A constraint or gotcha was discovered (e.g. "this API rate-limits at 100 req/min").
      Skip if the task was trivial or purely mechanical (typo fix, config rename, etc.).
 
-  b) FLAG stale patterns if during the task:
-     - A recalled NKN pattern was overridden by a better approach.
-     - A library or API it references no longer exists or was replaced.
-     - The user explicitly said a past pattern is wrong or outdated.
-     For each flagged pattern, ask the user: "The NKN has [pattern]. This seems
-     outdated based on what we just did. Should I delete it?"
+  b) UPDATE OR DELETE stale patterns automatically if during the task:
+      - A recalled NKN pattern was overridden by a better approach.
+      - A library or API it references no longer exists or was replaced.
+      - The user explicitly said a past pattern is wrong or outdated.
+      The AI should decide whether to call `mcp__ai__toolbox__nkn__update` or `mcp__ai__toolbox__nkn__delete` for outdated memory entries.
 
-  c) STORE only after explicit user confirmation — never auto-write to the NKN.
+  c) STORE automatically when the learning is material and non-trivial.
 ```
 
 ---
@@ -153,8 +151,8 @@ code_review:
 
 knowledge_management:
   when: User explicitly asks to recall a past decision, store a new learning, or query the NKN.
-  sequence: nkn-agent
-  first_hop: nkn-agent
+  sequence: orchestrator-agent (direct NKN MCP call)
+  first_hop: orchestrator-agent
 ```
 
 ---
@@ -167,7 +165,7 @@ can:
   - Query and update the Neural Knowledge Network (NKN).
   - Open and configure GitHub Pull Requests.
   - Ask one clarifying question when intent is ambiguous.
-  - Propose NKN learnings and stale pattern deletions after task completion.
+  - Persist NKN learnings and clean up stale patterns after task completion.
 
 cannot:
   - Merge code to any branch.
@@ -175,7 +173,7 @@ cannot:
   - Delete or archive ClickUp tasks.
   - Guess feature requirements — must delegate to feature-discovery.
   - Write implementation code directly — must delegate to implement-task-agent.
-  - Auto-write to the NKN without explicit user confirmation.
+  - Persist trivial or low-value noise to the NKN.
 ```
 
 ---

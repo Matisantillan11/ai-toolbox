@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-import os
 import shutil
 import json
 from pathlib import Path
 
 def install_antigravity_knowledge():
-    print("🚀 Installing AI-Toolbox with NKN (Neural Knowledge Network)...")
+    print("🚀 Installing AI-Toolbox with MCP-backed NKN support...")
     
     # Get the repo root dynamically so this script works on any user's machine
     script_dir = Path(__file__).resolve().parent
@@ -15,16 +14,6 @@ def install_antigravity_knowledge():
     if not (source_dir / "skills").exists():
         print("❌ Error: Could not find the 'skills' directory. Make sure this script is run from the 'scripts/' directory.")
         return
-
-    # 0. Initialize NKN (Neural Knowledge Network)
-    # We use the absolute path of nkn_tool.py so Claude and Gemini can always find it
-    nkn_tool_path = (source_dir / "scripts" / "nkn_tool.py").resolve()
-    print(f"🧠 Initializing Neural Knowledge Network at {nkn_tool_path}...")
-    
-    if nkn_tool_path.exists():
-        os.system(f"python3 {nkn_tool_path} init")
-    else:
-        print("⚠️ Warning: scripts/nkn_tool.py not found. NKN initialization skipped.")
 
     # Put the knowledge in the project level directory where the user executes the script
     target_project_dir = Path.cwd()
@@ -56,12 +45,11 @@ def install_antigravity_knowledge():
                 with open(ki_dir / "metadata.json", "w") as f:
                     json.dump(metadata, f, indent=2)
                 
-                # Copy and PATCH skills (replace {{NKN_TOOL_PATH}})
+                # Copy skills and any bundled artifacts
                 for item in skill_path.iterdir():
                     if item.is_file():
                         content = item.read_text(errors='ignore')
-                        patched_content = content.replace("{{NKN_TOOL_PATH}}", str(nkn_tool_path))
-                        (artifacts_dir / item.name).write_text(patched_content)
+                        (artifacts_dir / item.name).write_text(content)
                     elif item.is_dir():
                         shutil.copytree(item, artifacts_dir / item.name, dirs_exist_ok=True)
                         
@@ -106,8 +94,8 @@ description: {skill_desc}
 
 **IF YOU PROCEED TO RESEARCH WITHOUT READING THE SKILL KNOWLEDGE FIRST, YOU ARE FAILING THIS MISSION.**
 
-1. **Phase 0: Memory Retrieval (NKN)**: Check the local Neural Knowledge Network for any relevant past decisions or architectural patterns before starting.
-   - Run: `python3 {nkn_tool_path} query --term "{skill_name}"`
+1. **Phase 0: Memory Retrieval (NKN)**: Check the configured ai-toolbox NKN MCP server for any relevant past decisions or architectural patterns before starting.
+   - Use the `ai__toolbox__nkn` MCP server's recall tool with terms relevant to this workflow.
    - Incorporate any findings into your planning.
 
 2. **Phase 1: Skill Acquisition**: You must acquire the instructions for this workflow from your local knowledge directory.
@@ -143,16 +131,15 @@ description: {skill_desc}
                 with open(ki_dir / "metadata.json", "w") as f:
                     json.dump(metadata, f, indent=2)
                 
-                # Copy and PATCH agents (replace {{NKN_TOOL_PATH}})
+                # Copy agent file
                 content = agent_path.read_text(errors='ignore')
-                patched_content = content.replace("{{NKN_TOOL_PATH}}", str(nkn_tool_path))
-                (artifacts_dir / agent_path.name).write_text(patched_content)
+                (artifacts_dir / agent_path.name).write_text(content)
                 
                 print(f"  ✅ Installed Agent: {agent_name}")
 
     print("\n🎉 Installation complete!")
     print(f"👉 To use this in Claude Code, make sure you ran: 'claude plugins add https://github.com/Matisantillan11/ai-toolbox'")
-    print(f"👉 In Antigravity/Gemini, you can now run any skill or use the '/nkn-agent' workflow.")
+    print(f"👉 In Antigravity/Gemini, you can now run any installed workflow with MCP-backed NKN guidance.")
 
 if __name__ == "__main__":
     install_antigravity_knowledge()

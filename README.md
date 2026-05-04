@@ -32,7 +32,7 @@ Agents follow an **orchestrator → sub-agent** architecture. The `orchestrator-
 
 | Agent | Role |
 |---|---|
-| **orchestrator-agent** | **Default entry point.** Handles any user request by classifying intent and routing to the right sub-agent. Always runs first; always responds last. |
+| **orchestrator-agent** | **Default entry point.** Handles any user request by classifying intent, recalling NKN context through MCP, and routing to the right sub-agent. Always runs first; always responds last. |
 
 ### Sub-agents (invoked by orchestrator only)
 
@@ -43,7 +43,6 @@ Agents follow an **orchestrator → sub-agent** architecture. The `orchestrator-
 | **plan-expert-agent** | `quick_task`, `refactor`, or after discovery — decomposes specs into 8-section subtasks. |
 | **implement-task-agent** | `implementation` intent or after planning — writes code, runs review, commits, opens PR. |
 | **design-system-setup-agent** | `design_system` intent — design-expert → design-system-docs → plan-expert pipeline. |
-| **nkn-agent** | `knowledge_management` intent — recalls past decisions and persists new learnings to the NKN. |
 
 > **How to use:** Just describe what you want in natural language. The orchestrator routes automatically. Use `/` skills for direct, one-off invocations when you know exactly which step to run.
 
@@ -58,6 +57,75 @@ Agents follow an **orchestrator → sub-agent** architecture. The `orchestrator-
 ---
 
 ## Installation
+
+### NKN MCP runtime
+
+This repository now ships a self-contained Node.js workspace under `learn-tool/` for NKN access. It contains the MCP server, local CLI, SQLite service layer, and tests. From the repo root:
+
+```bash
+cd learn-tool && pnpm install
+```
+
+Claude Code can load the included `.mcp.json` project config so agents can call `mcp__ai__toolbox__nkn__recall`, `mcp__ai__toolbox__nkn__learn`, `mcp__ai__toolbox__nkn__update`, and `mcp__ai__toolbox__nkn__delete` directly. The SQLite database stays at `~/.ai-toolbox/nkn.db` by default, or you can override it with `AI_TOOLBOX_NKN_DB_PATH`.
+
+### Using learn-tool
+
+Install dependencies once:
+
+```bash
+cd learn-tool && pnpm install
+```
+
+Run the local validation commands:
+
+```bash
+cd learn-tool && pnpm run check
+cd learn-tool && pnpm test
+```
+
+Initialize the SQLite database manually if needed:
+
+```bash
+pnpm learn-tool/src/cli/nkn.js init
+```
+
+Query past learnings from the CLI:
+
+```bash
+ pnpm learn-tool/src/cli/nkn.js query --term "auth flow"
+```
+
+Persist a learning from the CLI:
+
+```bash
+pnpm learn-tool/src/cli/nkn.js log \
+  --project "ai-toolbox" \
+  --topic "Architecture" \
+  --decision "Use the learn-tool MCP for NKN access" \
+  --reasoning "Centralizes memory access for all agents"
+```
+
+Update an existing learning from the CLI:
+
+```bash
+pnpm learn-tool/src/cli/nkn.js update \
+  --id 1 \
+  --decision "Use the ai-toolbox NKN MCP for memory access"
+```
+
+Delete an existing learning from the CLI:
+
+```bash
+pnpm learn-tool/src/cli/nkn.js delete --id 1
+```
+
+Start the MCP server directly:
+
+```bash
+pnpm learn-tool/src/mcp/server.js
+```
+
+Sensitive values such as decision bodies, reasoning text, and raw payloads are redacted from logs by default. The ai-toolbox guidance now treats learning as automatic, and stale memories can also be updated or deleted automatically through the MCP tools.
 
 ### Option 1 — Install directly via Claude Code (no cloning required)
 
@@ -234,8 +302,15 @@ ai-toolbox/
 │   ├── feature-discovery-agent.md       # Sub-agent: requirement interviews
 │   ├── plan-expert-agent.md             # Sub-agent: technical decomposition
 │   ├── implement-task-agent.md          # Sub-agent: code + PR delivery
-│   ├── design-system-setup-agent.md     # Sub-agent: design system pipeline
-│   └── nkn-agent.md                     # Sub-agent: NKN memory management
+│   └── design-system-setup-agent.md     # Sub-agent: design system pipeline
+├── learn-tool/
+│   ├── package.json                     # Dedicated Node.js workspace for the NKN tool
+│   ├── src/
+│   │   ├── cli/nkn.js                   # Local NKN CLI for init/query/log
+│   │   ├── mcp/server.js                # MCP server exposing learn/recall
+│   │   └── nkn/                         # Shared SQLite-backed NKN core
+│   └── test/
+│       └── nkn-service.test.js          # NKN service coverage
 ├── skills/
 │   ├── a11y-auditor/
 │   │   └── SKILL.md
@@ -332,6 +407,7 @@ ai-toolbox/
 
 | Server | Type | Purpose |
 |---|---|---|
+| `nkn` | stdio | Local SQLite-backed project memory for recall and user-confirmed learn operations |
 | `github` | HTTP | GitHub repository operations via the Copilot MCP endpoint |
 | `clickup` | HTTP | ClickUp task management — read tickets, create tasks and subtasks |
 
