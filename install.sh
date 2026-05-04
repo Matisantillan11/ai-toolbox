@@ -253,6 +253,8 @@ prompt_for_targets_checkbox() {
 }
 
 prompt_for_targets() {
+    echo "Choose which IDE/AI tool you want to install AI Toolbox for: "  
+
     if [ -t 0 ] && [ -t 1 ]; then
         prompt_for_targets_checkbox
     else
@@ -433,8 +435,8 @@ install_claude() {
         claude plugin marketplace update "$CLAUDE_MARKETPLACE_NAME" || true
     fi
 
-    if ! claude plugin install "ai-toolbox@$CLAUDE_MARKETPLACE_NAME" --scope user; then
-        claude plugin enable "ai-toolbox@$CLAUDE_MARKETPLACE_NAME" --scope user
+    if ! claude plugin install "$CLAUDE_MARKETPLACE_NAME" --scope user; then
+        claude plugin enable "$CLAUDE_MARKETPLACE_NAME" --scope user
     fi
 
     log_success "Claude install complete."
