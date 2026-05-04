@@ -4,7 +4,7 @@ set -e
 REPO_URL="https://github.com/Matisantillan11/ai-toolbox.git"
 REPO_HTTP_URL="https://github.com/Matisantillan11/ai-toolbox"
 CLAUDE_MARKETPLACE_SOURCE="Matisantillan11/ai-toolbox"
-CLAUDE_MARKETPLACE_NAME="matisantillan11-ai-toolbox"
+CLAUDE_MARKETPLACE_NAME="Matisantillan11/ai-toolbox"
 INSTALL_ROOT="$HOME/.ai-toolbox"
 CHECKOUT_DIR="$INSTALL_ROOT/repo"
 PROJECT_ROOT="$PWD"
