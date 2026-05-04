@@ -216,6 +216,8 @@ Use the single installer from the root of the project where you want `.mcp.json`
 - install the selected Claude, Antigravity, OpenCode, and/or Codex assets
 
 Interactive mode:
+- uses a checkbox-style selector in the terminal
+- press `space` to toggle a CLI and `enter` to confirm
 
 ```bash
 bash <(curl -s https://raw.githubusercontent.com/Matisantillan11/ai-toolbox/main/install.sh)

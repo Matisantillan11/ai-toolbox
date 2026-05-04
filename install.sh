@@ -13,6 +13,8 @@ OPEN_CODE_ARGS=()
 FORCE_CLEAN=0
 INSTALL_SUCCESSES=()
 INSTALL_FAILURES=()
+CHECKBOX_OPTIONS=(claude antigravity opencode codex)
+CHECKBOX_SELECTED=(0 0 0 0)
 
 print_help() {
     cat <<'EOF'
@@ -31,6 +33,9 @@ Examples:
   bash install.sh --targets codex
   bash install.sh --targets opencode --force-clean
   bash install.sh --targets all --global-opencode
+
+Interactive mode:
+  Use arrow keys and space to select one or more CLIs, then press enter.
 EOF
 }
 
@@ -98,7 +103,7 @@ normalize_targets() {
     fi
 }
 
-prompt_for_targets() {
+prompt_for_targets_fallback() {
     cat <<'EOF'
 Choose install targets:
   1. Claude
@@ -145,6 +150,99 @@ EOF
             done
             ;;
     esac
+}
+
+render_checkbox_menu() {
+    local current_index="$1"
+    local index marker prefix option_name
+
+    printf '\033[H\033[2J'
+    echo "Choose install targets"
+    echo "Use ↑/↓ to move, space to toggle, enter to confirm."
+    echo
+
+    for index in "${!CHECKBOX_OPTIONS[@]}"; do
+        option_name="${CHECKBOX_OPTIONS[$index]}"
+        if [ "${CHECKBOX_SELECTED[$index]}" -eq 1 ]; then
+            marker="[x]"
+        else
+            marker="[ ]"
+        fi
+
+        if [ "$index" -eq "$current_index" ]; then
+            prefix="❯"
+        else
+            prefix=" "
+        fi
+
+        printf '%s %s %s\n' "$prefix" "$marker" "$option_name"
+    done
+}
+
+prompt_for_targets_checkbox() {
+    local current_index=0
+    local option_count=${#CHECKBOX_OPTIONS[@]}
+    local key escape_sequence index
+
+    while true; do
+        render_checkbox_menu "$current_index"
+        IFS= read -rsn1 key
+
+        if [ "$key" = $'\x1b' ]; then
+            IFS= read -rsn2 escape_sequence || true
+            case "$escape_sequence" in
+                '[A')
+                    if [ "$current_index" -gt 0 ]; then
+                        current_index=$((current_index - 1))
+                    else
+                        current_index=$((option_count - 1))
+                    fi
+                    ;;
+                '[B')
+                    if [ "$current_index" -lt $((option_count - 1)) ]; then
+                        current_index=$((current_index + 1))
+                    else
+                        current_index=0
+                    fi
+                    ;;
+            esac
+            continue
+        fi
+
+        if [ "$key" = ' ' ]; then
+            if [ "${CHECKBOX_SELECTED[$current_index]}" -eq 1 ]; then
+                CHECKBOX_SELECTED[$current_index]=0
+            else
+                CHECKBOX_SELECTED[$current_index]=1
+            fi
+            continue
+        fi
+
+        if [ -z "$key" ]; then
+            TARGETS=()
+            for index in "${!CHECKBOX_OPTIONS[@]}"; do
+                if [ "${CHECKBOX_SELECTED[$index]}" -eq 1 ]; then
+                    TARGETS+=("${CHECKBOX_OPTIONS[$index]}")
+                fi
+            done
+
+            if [ ${#TARGETS[@]} -eq 0 ]; then
+                printf '\a'
+                continue
+            fi
+
+            printf '\033[H\033[2J'
+            return
+        fi
+    done
+}
+
+prompt_for_targets() {
+    if [ -t 0 ] && [ -t 1 ]; then
+        prompt_for_targets_checkbox
+    else
+        prompt_for_targets_fallback
+    fi
 }
 
 require_command() {
