@@ -229,6 +229,7 @@ bash <(curl -s https://raw.githubusercontent.com/Matisantillan11/ai-toolbox/main
 bash <(curl -s https://raw.githubusercontent.com/Matisantillan11/ai-toolbox/main/install.sh) --targets codex
 bash <(curl -s https://raw.githubusercontent.com/Matisantillan11/ai-toolbox/main/install.sh) --targets all
 bash <(curl -s https://raw.githubusercontent.com/Matisantillan11/ai-toolbox/main/install.sh) --targets opencode --global-opencode
+bash <(curl -s https://raw.githubusercontent.com/Matisantillan11/ai-toolbox/main/install.sh) --targets opencode,codex --force-clean
 ```
 
 Target behavior:
@@ -247,6 +248,7 @@ Important:
 - OpenCode agents do not preload skills.
 - Codex custom agents are exported without pinning a model.
 - Codex does not auto-run these agents; they stay available for explicit use or delegation.
+- `--force-clean` removes only AI Toolbox-managed assets for the selected targets before reinstalling.
 - This is intentional so users can choose the right model, agent, and skill per task.
 
 ---

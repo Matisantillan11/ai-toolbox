@@ -106,11 +106,13 @@ def main() -> None:
     config_path.parent.mkdir(parents=True, exist_ok=True)
 
     if args.format == "json":
+        print(f"🔧 Configuring AI Toolbox MCP JSON config at {config_path}...")
         update_json_config(config_path, repo_root)
     else:
+        print(f"🔧 Configuring AI Toolbox MCP Codex config at {config_path}...")
         update_codex_config(config_path, repo_root)
 
-    print(f"Configured ai-toolbox MCP in {config_path}")
+    print(f"✅ Configured ai-toolbox MCP in {config_path}")
 
 
 if __name__ == "__main__":

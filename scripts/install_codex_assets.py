@@ -46,11 +46,38 @@ def parse_frontmatter_value(frontmatter: str, key: str) -> str | None:
     return None
 
 
+def rewrite_skill_file(skill_dir: Path) -> None:
+    skill_file = skill_dir / "SKILL.md"
+    if not skill_file.exists():
+        raise FileNotFoundError(f"Missing skill file: {skill_file}")
+
+    content = skill_file.read_text(encoding="utf-8")
+    frontmatter, body = split_frontmatter(content)
+    name = parse_frontmatter_value(frontmatter, "name") or skill_dir.name
+    description = parse_frontmatter_value(frontmatter, "description")
+    if not description:
+        raise ValueError(f"Skill {name} is missing a description in {skill_file}")
+
+    skill_file.write_text(
+        "\n".join(
+            [
+                "---",
+                f"name: {name}",
+                f"description: {description}",
+                "---",
+                "",
+            ]
+        )
+        + body,
+        encoding="utf-8",
+    )
+
+
 def copy_skills(source_dir: Path, target_dir: Path) -> None:
     skills_dir = source_dir / "skills"
     target_dir.mkdir(parents=True, exist_ok=True)
 
-    print("\nInstalling Codex skills...")
+    print("\n📦 Installing Codex skills...")
     for skill_path in sorted(skills_dir.iterdir()):
         if not skill_path.is_dir():
             continue
@@ -60,7 +87,8 @@ def copy_skills(source_dir: Path, target_dir: Path) -> None:
             shutil.rmtree(destination)
 
         shutil.copytree(skill_path, destination)
-        print(f"  installed skill: {skill_path.name}")
+        rewrite_skill_file(destination)
+        print(f"  ✅ Installed skill: {skill_path.name}")
 
 
 def toml_multiline(value: str) -> str:
@@ -72,7 +100,7 @@ def export_agents(source_dir: Path, target_dir: Path) -> None:
     agents_dir = source_dir / "agents"
     target_dir.mkdir(parents=True, exist_ok=True)
 
-    print("\nInstalling Codex agents...")
+    print("\n🤖 Installing Codex agents...")
     for agent_path in sorted(agents_dir.glob("*.md")):
         content = agent_path.read_text(encoding="utf-8")
         frontmatter, body = split_frontmatter(content)
@@ -100,7 +128,7 @@ def export_agents(source_dir: Path, target_dir: Path) -> None:
             ),
             encoding="utf-8",
         )
-        print(f"  installed agent: {name}")
+        print(f"  ✅ Installed agent: {name}")
 
 
 def main() -> None:
@@ -108,11 +136,13 @@ def main() -> None:
     source_dir = script_dir.parent
     target_project_dir = Path.cwd()
 
+    print(f"🚀 Installing AI Toolbox into Codex at {target_project_dir}")
+
     copy_skills(source_dir, target_project_dir / ".agents" / "skills")
     export_agents(source_dir, target_project_dir / ".codex" / "agents")
 
-    print("\nInstallation complete.")
-    print("Codex will load skills from .agents/skills and custom agents from .codex/agents.")
+    print("\n🎉 Codex installation complete.")
+    print("👉 Codex will load skills from .agents/skills and custom agents from .codex/agents.")
 
 
 if __name__ == "__main__":
