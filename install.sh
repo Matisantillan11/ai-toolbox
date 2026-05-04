@@ -171,7 +171,7 @@ render_checkbox_menu() {
         fi
     done
 
-    echo "Choose install targets"
+    echo "Choose which IDE/AI tool you want to install AI Toolbox"
     echo "Use ↑/↓ to move, space to toggle, enter to confirm."
     echo "Selected: $selected_count"
     echo
@@ -252,9 +252,7 @@ prompt_for_targets_checkbox() {
     done
 }
 
-prompt_for_targets() {
-    echo "Choose which IDE/AI tool you want to install AI Toolbox for: "  
-
+prompt_for_targets() {  
     if [ -t 0 ] && [ -t 1 ]; then
         prompt_for_targets_checkbox
     else
