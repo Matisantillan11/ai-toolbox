@@ -5,7 +5,7 @@
   "type": "module",
   "description": "SQLite-backed NKN MCP and CLI for ai-toolbox",
   "bin": {
-    "ai-toolbox-nkn-mcp": "./src/mcp/server.js",
+    "ai-toolbox-mcp": "./src/mcp/server.js",
     "ai-toolbox-nkn": "./src/cli/nkn.js"
   },
   "scripts": {

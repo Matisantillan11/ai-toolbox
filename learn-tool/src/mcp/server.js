@@ -4,18 +4,20 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { createNknService } from "../nkn/service.js";
+import { createAnalyticsTraceService } from "../../../analytics-tool/src/analytics/service.js";
 
-const service = createNknService();
+const nknService = createNknService();
+const analyticsService = createAnalyticsTraceService();
 
 const server = new McpServer({
-  name: "ai-toolbox-nkn",
+  name: "ai-toolbox",
   version: "1.0.0",
 });
 
 /**
- * Formats a learn-tool result payload as MCP text content.
+ * Formats a tool result payload as MCP text content.
  *
- * @param {unknown} result Result payload returned by the NKN service.
+ * @param {unknown} result Result payload returned by a backing service.
  * @returns {{content: Array<{type: string, text: string}>}} MCP-compatible text response.
  */
 function toTextResult(result) {
@@ -30,46 +32,57 @@ function toTextResult(result) {
 }
 
 /**
- * Handles the MCP `recall` tool by querying the shared NKN service.
+ * Handles the MCP `nkn_recall` tool by querying the NKN service.
  *
  * @param {{term: string, project?: string, limit?: number}} input Recall input.
  * @returns {Promise<{content: Array<{type: string, text: string}>}>} MCP tool response.
  */
-async function handleRecall(input) {
-  const result = service.recall(input);
+async function handleNknRecall(input) {
+  const result = nknService.recall(input);
   return toTextResult(result);
 }
 
 /**
- * Handles the MCP `learn` tool by persisting a confirmed learning.
+ * Handles the MCP `nkn_learn` tool by persisting a confirmed learning.
  *
  * @param {{project?: string, topic?: string, decision: string, reasoning?: string, stack?: string, tokensCost?: number, confirmedByUser?: boolean}} input Learn input.
  * @returns {Promise<{content: Array<{type: string, text: string}>}>} MCP tool response.
  */
-async function handleLearn(input) {
-  const result = service.learn(input);
+async function handleNknLearn(input) {
+  const result = nknService.learn(input);
   return toTextResult(result);
 }
 
 /**
- * Handles the MCP `update` tool by mutating an existing learning.
+ * Handles the MCP `nkn_update` tool by mutating an existing learning.
  *
  * @param {{id: number, project?: string, topic?: string, decision?: string, reasoning?: string, stack?: string, tokensCost?: number}} input Update input.
  * @returns {Promise<{content: Array<{type: string, text: string}>}>} MCP tool response.
  */
-async function handleUpdate(input) {
-  const result = service.update(input);
+async function handleNknUpdate(input) {
+  const result = nknService.update(input);
   return toTextResult(result);
 }
 
 /**
- * Handles the MCP `delete` tool by removing an existing learning.
+ * Handles the MCP `nkn_delete` tool by removing an existing learning.
  *
  * @param {{id: number}} input Delete input.
  * @returns {Promise<{content: Array<{type: string, text: string}>}>} MCP tool response.
  */
-async function handleDelete(input) {
-  const result = service.delete(input);
+async function handleNknDelete(input) {
+  const result = nknService.delete(input);
+  return toTextResult(result);
+}
+
+/**
+ * Handles the MCP `analytics_trace` tool by persisting analytics information.
+ *
+ * @param {{project?: string, area?: string, trace: string, details?: string, status?: string, priority?: string, confirmedByUser?: boolean}} input Trace input.
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>} MCP tool response.
+ */
+async function handleAnalyticsTrace(input) {
+  const result = analyticsService.trace(input);
   return toTextResult(result);
 }
 
@@ -80,22 +93,23 @@ async function handleDelete(input) {
  * @returns {void}
  */
 function shutdown(code) {
-  service.close();
+  nknService.close();
+  analyticsService.close();
   process.exit(code);
 }
 
 server.tool(
-  "recall",
+  "nkn_recall",
   {
     term: z.string().min(1),
     project: z.string().min(1).optional(),
     limit: z.number().int().min(1).max(25).optional(),
   },
-  handleRecall
+  handleNknRecall
 );
 
 server.tool(
-  "learn",
+  "nkn_learn",
   {
     project: z.string().min(1).optional(),
     topic: z.string().min(1).optional(),
@@ -105,11 +119,11 @@ server.tool(
     tokensCost: z.number().int().min(0).optional(),
     confirmedByUser: z.boolean().optional(),
   },
-  handleLearn
+  handleNknLearn
 );
 
 server.tool(
-  "update",
+  "nkn_update",
   {
     id: z.number().int().min(1),
     project: z.string().min(1).optional(),
@@ -119,15 +133,29 @@ server.tool(
     stack: z.string().optional(),
     tokensCost: z.number().int().min(0).optional(),
   },
-  handleUpdate
+  handleNknUpdate
 );
 
 server.tool(
-  "delete",
+  "nkn_delete",
   {
     id: z.number().int().min(1),
   },
-  handleDelete
+  handleNknDelete
+);
+
+server.tool(
+  "analytics_trace",
+  {
+    project: z.string().min(1).optional(),
+    area: z.string().min(1).optional(),
+    trace: z.string().min(1),
+    details: z.string().optional(),
+    status: z.string().min(1).optional(),
+    priority: z.string().min(1).optional(),
+    confirmedByUser: z.boolean().optional(),
+  },
+  handleAnalyticsTrace
 );
 
 /**

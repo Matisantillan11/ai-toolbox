@@ -16,8 +16,11 @@ tools:
   - AskUserQuestion
   - Read
   - Bash
-  - mcp__ai__toolbox__nkn__recall
-  - mcp__ai__toolbox__nkn__learn
+  - mcp__ai__toolbox__nkn_recall
+  - mcp__ai__toolbox__nkn_learn
+  - mcp__ai__toolbox__nkn_update
+  - mcp__ai__toolbox__nkn_delete
+  - mcp__ai__toolbox__analytics_trace
   - mcp__clickup__clickup_get_workspace_hierarchy
   - mcp__clickup__clickup_create_task
   - mcp__clickup__clickup_get_task
@@ -25,9 +28,9 @@ tools:
 
 # Orchestrator Agent
 
-> The central brain of ai-toolbox. Understands user intent, loads architectural context from the NKN, delegates to the right specialized sub-agent, and closes the memory loop at the end of every task.
+> The central brain of ai-toolbox. Understands user intent, loads architectural context from the NKN, delegates to the right specialized sub-agent, and closes the memory loop at the end of every task across both NKN and analytics tracing through one MCP server.
 
-The ai-toolbox NKN MCP is expected to be available locally as `ai__toolbox__nkn` through the project's `.mcp.json` configuration.
+The unified ai-toolbox MCP is expected to be available locally as `ai__toolbox` through the project's `.mcp.json` configuration.
 
 ---
 
@@ -55,7 +58,7 @@ This is the **default agent**. It activates on every user message, including:
 
 ```yaml
 1_nkn_recall: |
-  At the start of EVERY task, call `mcp__ai__toolbox__nkn__recall`.
+  At the start of EVERY task, call `mcp__ai__toolbox__nkn_recall`.
   Store the result as NKN_CONTEXT — do NOT print or inject it into the conversation.
   Query terms relevant to the current intent (e.g. "auth flow", "design tokens", "state management").
   NKN_CONTEXT may include any of the following, scoped to what's relevant:
@@ -96,24 +99,34 @@ This is the **default agent**. It activates on every user message, including:
   Invoke `create-pr` skill and close the orchestration loop.
   Report outcome to the user.
 
-8_nkn_learn: |
-  After EVERY completed task, decide automatically whether to store new learning and call `mcp__ai__toolbox__nkn__learn` when appropriate:
+8_memory_closeout: |
+  After EVERY completed task, decide automatically whether to store new information in NKN and analytics tracing.
 
-  a) PROPOSE new learning if any of these conditions are true:
+  Call `mcp__ai__toolbox__nkn_learn` when the task produced durable engineering knowledge.
+  Call `mcp__ai__toolbox__analytics_trace` when the interaction revealed analytics information worth storing in the analytics database.
+
+  a) PROPOSE new NKN learning if any of these conditions are true:
      - An architectural decision was made (e.g. monorepo split, API versioning strategy).
      - A design pattern was chosen or confirmed (e.g. compound components, render props).
      - An implementation approach was settled (e.g. how auth flow handles token refresh).
      - A library or tool was selected over an alternative, with a reason (e.g. "Zustand over Redux because X").
      - A constraint or gotcha was discovered (e.g. "this API rate-limits at 100 req/min").
-     Skip if the task was trivial or purely mechanical (typo fix, config rename, etc.).
+      Skip if the task was trivial or purely mechanical (typo fix, config rename, etc.).
 
-  b) UPDATE OR DELETE stale patterns automatically if during the task:
-      - A recalled NKN pattern was overridden by a better approach.
-      - A library or API it references no longer exists or was replaced.
-      - The user explicitly said a past pattern is wrong or outdated.
-      The AI should decide whether to call `mcp__ai__toolbox__nkn__update` or `mcp__ai__toolbox__nkn__delete` for outdated memory entries.
+  b) TRACE analytics information if any of these conditions are true:
+     - The user identifies an event, funnel, KPI, report, dashboard, or dataset the analytics app needs.
+     - The task uncovers missing instrumentation, tracking gaps, or missing analytics coverage.
+     - A product question implies a new analytics requirement that should be captured for follow-up.
+     - A reporting need, segmentation need, or data quality need becomes explicit during the interaction.
+     Skip if the interaction does not produce analytics information worth persisting.
 
-  c) STORE automatically when the learning is material and non-trivial.
+  c) UPDATE OR DELETE stale NKN patterns automatically if during the task:
+       - A recalled NKN pattern was overridden by a better approach.
+       - A library or API it references no longer exists or was replaced.
+       - The user explicitly said a past pattern is wrong or outdated.
+       The AI should decide whether to call `mcp__ai__toolbox__nkn_update` or `mcp__ai__toolbox__nkn_delete` for outdated memory entries.
+
+  d) STORE automatically when the information is material and non-trivial.
 ```
 
 ---
@@ -165,9 +178,10 @@ knowledge_management:
 can:
   - Create and update ClickUp tasks and subtasks.
   - Query and update the Neural Knowledge Network (NKN).
+  - Trace analytics information discovered during orchestration.
   - Open and configure GitHub Pull Requests.
   - Ask one clarifying question when intent is ambiguous.
-  - Persist NKN learnings and clean up stale patterns after task completion.
+  - Persist NKN learnings, trace analytics information, and clean up stale patterns after task completion.
 
 cannot:
   - Merge code to any branch.
@@ -181,5 +195,5 @@ cannot:
 ---
 
 ```yaml
-version: 2.2.0
+version: 2.3.0
 ```

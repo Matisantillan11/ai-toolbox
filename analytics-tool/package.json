@@ -1,0 +1,21 @@
+{
+  "name": "ai-toolbox-analytics-tool",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "SQLite-backed analytics trace MCP and CLI for ai-toolbox",
+  "bin": {
+    "ai-toolbox-analytics-mcp": "./src/mcp/server.js",
+    "ai-toolbox-analytics": "./src/cli/analytics-needs.js"
+  },
+  "scripts": {
+    "start": "node src/mcp/server.js",
+    "mcp:start": "node src/mcp/server.js",
+    "test": "AI_TOOLBOX_ANALYTICS_SILENT=1 node --test",
+    "check": "node --check src/cli/analytics-needs.js && node --check src/mcp/server.js && node --check src/analytics/config.js && node --check src/analytics/db.js && node --check src/analytics/logger.js && node --check src/analytics/service.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.3",
+    "zod": "^3.24.4"
+  }
+}

@@ -60,15 +60,21 @@ In OpenCode, the same agents are installed as optional agents without pinning th
 
 ## Installation
 
-### NKN MCP runtime
+### MCP runtime
 
-This repository ships a self-contained Node.js workspace under `learn-tool/` for NKN access. It contains the MCP server, local CLI, SQLite service layer, and tests. The MCP server is meant to be started as a local process through `pnpm`, not from a GitHub URL.
+This repository ships two self-contained Node.js workspaces:
+
+- `learn-tool/` for NKN access.
+- `analytics-tool/` for tracking what the analytics app needs.
+
+`learn-tool/` now hosts the unified MCP server and `analytics-tool/` keeps the analytics service and CLI isolated. The MCP server is meant to be started as a local process through `pnpm`, not from a GitHub URL.
 
 ```bash
 cd learn-tool && pnpm install
+cd analytics-tool && pnpm install
 ```
 
-Supported clients can load the ai-toolbox MCP from their user config so agents can call `mcp__ai__toolbox__nkn__recall`, `mcp__ai__toolbox__nkn__learn`, `mcp__ai__toolbox__nkn__update`, and `mcp__ai__toolbox__nkn__delete` directly. The SQLite database stays at `~/.ai-toolbox/nkn.db` by default, or you can override it with `AI_TOOLBOX_NKN_DB_PATH`.
+Supported clients can load the unified ai-toolbox MCP from their user config so agents can call `mcp__ai__toolbox__nkn_recall`, `mcp__ai__toolbox__nkn_learn`, `mcp__ai__toolbox__nkn_update`, `mcp__ai__toolbox__nkn_delete`, and `mcp__ai__toolbox__analytics_trace` directly. The SQLite databases stay at `~/.ai-toolbox/nkn.db` and `~/.ai-toolbox/analytics.db` by default, or you can override them with `AI_TOOLBOX_NKN_DB_PATH` and `AI_TOOLBOX_ANALYTICS_DB_PATH`.
 
 Important:
 - MCP server entries must point to a local checked-out copy of this repository.
@@ -134,14 +140,52 @@ cd learn-tool && pnpm run mcp:start
 
 Sensitive values such as decision bodies, reasoning text, and raw payloads are redacted from logs by default. The ai-toolbox guidance now treats learning as automatic, and stale memories can also be updated or deleted automatically through the MCP tools.
 
-If you want to configure this MCP manually, first make sure this repository exists locally on disk and `learn-tool` dependencies are installed. Then add the server to the relevant user config:
+### Using analytics-tool
+
+Install dependencies once:
+
+```bash
+cd analytics-tool && pnpm install
+```
+
+Run the local validation commands:
+
+```bash
+cd analytics-tool && pnpm run check
+cd analytics-tool && pnpm test
+```
+
+Initialize the SQLite database manually if needed:
+
+```bash
+node analytics-tool/src/cli/analytics-needs.js init
+```
+
+Trace analytics information from the CLI:
+
+```bash
+node analytics-tool/src/cli/analytics-needs.js trace \
+  --project "analytics-app" \
+  --area "Dashboard" \
+  --trace "Track onboarding funnel events" \
+  --details "We need event coverage for signup, onboarding, and first report creation." \
+  --priority "high"
+```
+
+Start the analytics MCP server through the package script:
+
+```bash
+cd analytics-tool && pnpm run mcp:start
+```
+
+If you want to configure this MCP manually, first make sure this repository exists locally on disk and both workspaces have their dependencies installed. Then add the server to the relevant user config:
 
 Claude / Antigravity style JSON:
 
 ```json
 {
   "mcpServers": {
-    "ai__toolbox__nkn": {
+    "ai__toolbox": {
       "command": "pnpm",
       "args": [
         "--dir",
@@ -160,7 +204,7 @@ OpenCode JSON:
 ```json
 {
   "mcp": {
-    "ai__toolbox__nkn": {
+    "ai__toolbox": {
       "type": "local",
       "command": [
         "pnpm",
@@ -179,7 +223,7 @@ OpenCode JSON:
 Codex TOML:
 
 ```toml
-[mcp_servers.ai__toolbox__nkn]
+[mcp_servers.ai__toolbox]
 command = "pnpm"
 args = ["--dir", "/Users/matisantillandev/Desktop/Projects/ai-toolbox/learn-tool", "--silent", "run", "mcp:start"]
 ```
@@ -275,7 +319,7 @@ Target behavior:
 
 MCP behavior:
 - `learn-tool` is installed locally at `~/.ai-toolbox/repo/learn-tool`
-- when `claude` is selected, `~/.claude.json` is updated with the `ai__toolbox__nkn` server entry
+- when `claude` is selected, `~/.claude.json` is updated with the `ai__toolbox` server entry
 - when `opencode` is selected, `~/.config/opencode/opencode.json` is updated with the same server in the OpenCode `mcp` section
 - when `antigravity` is selected, `~/.gemini/antigravity/mcp_config.json` is updated with the same server
 - when `codex` is selected, `~/.codex/config.toml` is updated with the same server as a Codex MCP entry
