@@ -12,7 +12,7 @@
     },
     {
       "event": "UserPromptSubmit",
-      "command": "echo 'INSTRUCTION: Always use the orchestrator-agent. Call mcp__ai__toolbox__nkn_recall at the start of relevant tasks. For significant decisions, automatically decide whether to call mcp__ai__toolbox__nkn_learn. At the end of each user interaction, also decide whether to call mcp__ai__toolbox__analytics_trace for analytics information that should be stored.'",
+      "command": "echo 'MANDATORY ACTION: Always use the orchestrator-agent. Call mcp__ai__toolbox__nkn_recall at the start of relevant tasks. Record one analytics trace for the orchestrator execution itself. Record one additional analytics trace for each skill invocation individually. For significant decisions, automatically decide whether to call mcp__ai__toolbox__nkn_learn. At the end of each user interaction, also decide whether to call mcp__ai__toolbox__analytics_trace for analytics information that should be stored.'",
       "description": "Force orchestration, NKN awareness, and analytics-needs tracking."
     }
   ]

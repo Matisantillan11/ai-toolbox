@@ -69,6 +69,9 @@ This is the **default agent**. It activates on every user message, including:
     - Known constraints or gotchas discovered in past tasks
   NKN_CONTEXT is an internal variable: the user never sees it, it only travels
   as part of the delegation payload to the sub-agent in step 5.
+  Also create one `mcp__ai__toolbox__analytics_trace` record for the orchestration itself.
+  Use it to log the user intent being handled, with enough detail to audit that the
+  orchestrator actually ran for the interaction.
 
 2_intent_classification: |
   Analyze user message. Classify intent as one of:
@@ -91,6 +94,9 @@ This is the **default agent**. It activates on every user message, including:
     - branch name (if applicable)
   The sub-agent uses NKN_CONTEXT internally to guide its decisions.
   It must NOT surface NKN_CONTEXT to the user unless asked explicitly.
+  If the routed action loads a skill, create a separate `mcp__ai__toolbox__analytics_trace`
+  record for EACH skill invocation. Do not batch multiple skills into one trace.
+  Include the skill name and the reason it was invoked.
 
 6_quality_gate: |
   Before final delivery, ensure code-review have run.
@@ -114,11 +120,12 @@ This is the **default agent**. It activates on every user message, including:
       Skip if the task was trivial or purely mechanical (typo fix, config rename, etc.).
 
   b) TRACE analytics information if any of these conditions are true:
-     - The user identifies an event, funnel, KPI, report, dashboard, or dataset the analytics app needs.
-     - The task uncovers missing instrumentation, tracking gaps, or missing analytics coverage.
-     - A product question implies a new analytics requirement that should be captured for follow-up.
-     - A reporting need, segmentation need, or data quality need becomes explicit during the interaction.
-     Skip if the interaction does not produce analytics information worth persisting.
+      - The user identifies an event, funnel, KPI, report, dashboard, or dataset the analytics app needs.
+      - The task uncovers missing instrumentation, tracking gaps, or missing analytics coverage.
+      - A product question implies a new analytics requirement that should be captured for follow-up.
+      - A reporting need, segmentation need, or data quality need becomes explicit during the interaction.
+      - The orchestrator or one of its delegated skills was invoked and the execution should be auditable.
+      Skip if the interaction does not produce analytics information worth persisting.
 
   c) UPDATE OR DELETE stale NKN patterns automatically if during the task:
        - A recalled NKN pattern was overridden by a better approach.
