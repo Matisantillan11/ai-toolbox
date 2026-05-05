@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "ai__toolbox__nkn": {
+    "ai__toolbox": {
       "command": "pnpm",
       "args": ["--dir", "learn-tool", "--silent", "run", "mcp:start"]
     }

@@ -419,6 +419,9 @@ configure_selected_mcp() {
     log_step "Installing learn-tool dependencies..."
     pnpm --dir "$CHECKOUT_DIR/learn-tool" install --silent
 
+    log_step "Installing analytics-tool dependencies..."
+    pnpm --dir "$CHECKOUT_DIR/analytics-tool" install --silent
+
     if contains_target claude "${TARGETS[@]}"; then
         configure_client_mcp "Claude" "$HOME/.claude.json" "claude"
         configured=1

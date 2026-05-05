@@ -4,13 +4,13 @@ import json
 from pathlib import Path
 
 
-START_MARKER = "# BEGIN AI TOOLBOX NKN MCP"
-END_MARKER = "# END AI TOOLBOX NKN MCP"
+START_MARKER = "# BEGIN AI TOOLBOX MCPS"
+END_MARKER = "# END AI TOOLBOX MCPS"
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Configure the ai-toolbox NKN MCP entry for supported clients."
+        description="Configure the unified ai-toolbox MCP entry for supported clients."
     )
     parser.add_argument("--config", required=True, help="Path to the config file to update.")
     parser.add_argument(
@@ -32,8 +32,6 @@ def learn_tool_dir(repo_root: Path) -> Path:
     if not path.exists():
         raise FileNotFoundError(f"Missing learn-tool directory at {path}")
     return path
-
-
 def load_json_config(path: Path) -> dict:
     if not path.exists():
         return {}
@@ -58,7 +56,7 @@ def update_claude_like_json_config(config_path: Path, repo_root: Path) -> None:
     elif not isinstance(mcp_servers, dict):
         raise ValueError(f"Expected 'mcpServers' to be an object in {config_path}")
 
-    mcp_servers["ai__toolbox__nkn"] = {
+    mcp_servers["ai__toolbox"] = {
         "command": "pnpm",
         "args": ["--dir", str(learn_tool_dir(repo_root)), "--silent", "run", "mcp:start"],
     }
@@ -76,7 +74,7 @@ def update_opencode_config(config_path: Path, repo_root: Path) -> None:
     elif not isinstance(mcp, dict):
         raise ValueError(f"Expected 'mcp' to be an object in {config_path}")
 
-    mcp["ai__toolbox__nkn"] = {
+    mcp["ai__toolbox"] = {
         "type": "local",
         "command": ["pnpm", "--dir", str(learn_tool_dir(repo_root)), "--silent", "run", "mcp:start"],
         "enabled": True,
@@ -89,7 +87,7 @@ def render_codex_block(repo_root: Path) -> str:
     return "\n".join(
         [
             START_MARKER,
-            '[mcp_servers.ai__toolbox__nkn]',
+            '[mcp_servers.ai__toolbox]',
             'command = "pnpm"',
             f'args = ["--dir", "{learn_tool_dir(repo_root)}", "--silent", "run", "mcp:start"]',
             END_MARKER,

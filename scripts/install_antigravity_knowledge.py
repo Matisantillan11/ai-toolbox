@@ -94,8 +94,8 @@ description: {skill_desc}
 
 **IF YOU PROCEED TO RESEARCH WITHOUT READING THE SKILL KNOWLEDGE FIRST, YOU ARE FAILING THIS MISSION.**
 
-1. **Phase 0: Memory Retrieval (NKN)**: Check the configured ai-toolbox NKN MCP server for any relevant past decisions or architectural patterns before starting.
-   - Use the `ai__toolbox__nkn` MCP server's recall tool with terms relevant to this workflow.
+1. **Phase 0: Memory Retrieval (NKN)**: Check the configured unified ai-toolbox MCP server for any relevant past decisions or architectural patterns before starting.
+   - Use the `ai__toolbox` MCP server's `nkn_recall` tool with terms relevant to this workflow.
    - This MCP server must be configured as a local process, not a remote GitHub URL.
    - Incorporate any findings into your planning.
 
