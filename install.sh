@@ -412,6 +412,7 @@ configure_selected_mcp() {
     local configured=0
 
     require_command python3
+    require_command node
     require_command pnpm
     ensure_repo_checkout
 
@@ -419,8 +420,14 @@ configure_selected_mcp() {
     log_step "Installing learn-tool dependencies..."
     pnpm --dir "$CHECKOUT_DIR/learn-tool" install --silent
 
+    log_step "Initializing NKN database..."
+    node "$CHECKOUT_DIR/learn-tool/src/cli/nkn.js" init >/dev/null
+
     log_step "Installing analytics-tool dependencies..."
     pnpm --dir "$CHECKOUT_DIR/analytics-tool" install --silent
+
+    log_step "Initializing analytics database..."
+    node "$CHECKOUT_DIR/analytics-tool/src/cli/analytics-needs.js" init >/dev/null
 
     if contains_target claude "${TARGETS[@]}"; then
         configure_client_mcp "Claude" "$HOME/.claude.json" "claude"
