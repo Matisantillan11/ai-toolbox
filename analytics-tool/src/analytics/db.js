@@ -3,6 +3,17 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { getAnalyticsDbPath } from "./config.js";
 
+const executionInvocationTypes = new Set(["agent", "skill"]);
+const executionActionClassifications = new Set([
+  "feature",
+  "planning",
+  "bug",
+  "qa",
+  "design",
+  "refactor",
+  "research",
+]);
+
 /**
  * Ensures the parent directory exists before SQLite opens the database file.
  *
@@ -70,10 +81,34 @@ export function initializeDatabase(sqlite) {
     );
   `);
 
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS analytics_executions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      run_id TEXT NOT NULL UNIQUE,
+      project TEXT NOT NULL,
+      caller_agent TEXT NOT NULL,
+      invoked_name TEXT NOT NULL,
+      invocation_type TEXT NOT NULL,
+      action_classification TEXT NOT NULL,
+      call_count INTEGER NOT NULL DEFAULT 1,
+      tokens_spent INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CHECK (invocation_type IN ('agent', 'skill')),
+      CHECK (action_classification IN ('feature', 'planning', 'bug', 'qa', 'design', 'refactor', 'research')),
+      CHECK (call_count >= 0),
+      CHECK (tokens_spent >= 0)
+    );
+  `);
+
   sqlite.exec("CREATE INDEX IF NOT EXISTS analytics_traces_project_idx ON analytics_traces(project);");
   sqlite.exec("CREATE INDEX IF NOT EXISTS analytics_traces_area_idx ON analytics_traces(area);");
   sqlite.exec("CREATE INDEX IF NOT EXISTS analytics_traces_status_idx ON analytics_traces(status);");
   sqlite.exec("CREATE INDEX IF NOT EXISTS analytics_traces_priority_idx ON analytics_traces(priority);");
+  sqlite.exec("CREATE INDEX IF NOT EXISTS analytics_executions_project_idx ON analytics_executions(project);");
+  sqlite.exec("CREATE INDEX IF NOT EXISTS analytics_executions_caller_agent_idx ON analytics_executions(caller_agent);");
+  sqlite.exec("CREATE INDEX IF NOT EXISTS analytics_executions_invoked_name_idx ON analytics_executions(invoked_name);");
+  sqlite.exec("CREATE INDEX IF NOT EXISTS analytics_executions_invocation_type_idx ON analytics_executions(invocation_type);");
+  sqlite.exec("CREATE INDEX IF NOT EXISTS analytics_executions_action_classification_idx ON analytics_executions(action_classification);");
 
   migrateLegacyNeedsTable(sqlite);
 }
@@ -104,6 +139,51 @@ export function insertTrace(sqlite, record) {
 }
 
 /**
+ * Inserts an execution audit record into the analytics executions table.
+ *
+ * @param {DatabaseSync} sqlite Open SQLite connection.
+ * @param {{runId: string, project: string, callerAgent: string, invokedName: string, invocationType: string, actionClassification: string, callCount: number, tokensSpent: number, createdAt: string}} record Execution payload.
+ * @returns {number} Inserted row id.
+ */
+export function insertExecution(sqlite, record) {
+  if (!executionInvocationTypes.has(record.invocationType)) {
+    throw new Error(`Invalid invocation type: ${record.invocationType}`);
+  }
+
+  if (!executionActionClassifications.has(record.actionClassification)) {
+    throw new Error(`Invalid action classification: ${record.actionClassification}`);
+  }
+
+  const statement = sqlite.prepare(`
+    INSERT INTO analytics_executions (
+      run_id,
+      project,
+      caller_agent,
+      invoked_name,
+      invocation_type,
+      action_classification,
+      call_count,
+      tokens_spent,
+      created_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const result = statement.run(
+    record.runId,
+    record.project,
+    record.callerAgent,
+    record.invokedName,
+    record.invocationType,
+    record.actionClassification,
+    record.callCount,
+    record.tokensSpent,
+    record.createdAt
+  );
+
+  return Number(result.lastInsertRowid);
+}
+
+/**
  * Returns the most recent traces, optionally scoped to a single project.
  *
  * @param {DatabaseSync} sqlite Open SQLite connection.
@@ -119,6 +199,29 @@ export function selectLatest(sqlite, { project, limit }) {
        LIMIT ?`
     : `SELECT id, project, area, trace, details, status, priority, timestamp
        FROM analytics_traces
+       ORDER BY id DESC
+       LIMIT ?`;
+  const params = project ? [project, limit] : [limit];
+
+  return sqlite.prepare(sql).all(...params);
+}
+
+/**
+ * Returns the most recent execution audit records, optionally scoped to a single project.
+ *
+ * @param {DatabaseSync} sqlite Open SQLite connection.
+ * @param {{project?: string, limit: number}} options Query options.
+ * @returns {Array<object>} Latest matching execution records.
+ */
+export function selectLatestExecutions(sqlite, { project, limit }) {
+  const sql = project
+    ? `SELECT id, run_id, project, caller_agent, invoked_name, invocation_type, action_classification, call_count, tokens_spent, created_at
+       FROM analytics_executions
+       WHERE project = ?
+       ORDER BY id DESC
+       LIMIT ?`
+    : `SELECT id, run_id, project, caller_agent, invoked_name, invocation_type, action_classification, call_count, tokens_spent, created_at
+       FROM analytics_executions
        ORDER BY id DESC
        LIMIT ?`;
   const params = project ? [project, limit] : [limit];

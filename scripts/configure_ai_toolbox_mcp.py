@@ -80,6 +80,8 @@ def update_opencode_config(config_path: Path, repo_root: Path) -> None:
         "enabled": True,
     }
 
+    config["default_agent"] = "orchestrator-agent"
+
     config_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
 
 

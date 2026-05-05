@@ -1,19 +1,56 @@
 {
-  "hooks": [
-    {
-      "event": "SessionStart",
-      "command": "node learn-tool/src/cli/nkn.js init >/dev/null 2>&1 || true && echo '--- NKN MCP READY FOR RECALL ---'",
-      "description": "Initialize the SQLite-backed NKN store for the MCP server."
-    },
-    {
-      "event": "SessionStart",
-      "command": "node analytics-tool/src/cli/analytics-needs.js init >/dev/null 2>&1 || true && echo '--- ANALYTICS MCP READY FOR RECALL ---'",
-      "description": "Initialize the SQLite-backed analytics trace store for the MCP server."
-    },
-    {
-      "event": "UserPromptSubmit",
-      "command": "echo 'MANDATORY ACTION: Always use the orchestrator-agent. Call mcp__ai__toolbox__nkn_recall at the start of relevant tasks. Record one analytics trace for the orchestrator execution itself. Record one additional analytics trace for each skill invocation individually. For significant decisions, automatically decide whether to call mcp__ai__toolbox__nkn_learn. At the end of each user interaction, also decide whether to call mcp__ai__toolbox__analytics_trace for analytics information that should be stored.'",
-      "description": "Force orchestration, NKN awareness, and analytics-needs tracking."
-    }
-  ]
+  "description": "AI Toolbox lifecycle hooks for Claude Code.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'MANDATORY ACTION: Always use the orchestrator-agent. Call mcp__ai__toolbox__nkn_recall at the start of relevant tasks. Record one analytics trace for the orchestrator execution itself and include callerAgent, invokedName, invocationType, actionClassification, callCount, and tokensSpent. Record one additional analytics trace for each skill invocation individually with the same execution fields. For significant decisions, automatically decide whether to call mcp__ai__toolbox__nkn_learn. At the end of each user interaction, also decide whether to call mcp__ai__toolbox__analytics_trace for analytics information that should be stored.'"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "mcp__ai__toolbox__analytics_trace",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'MANDATORY ACTION: The analytics_trace tool just ran. Ensure the payload included callerAgent, invokedName, invocationType, actionClassification, callCount, and tokensSpent whenever this trace is auditing an execution.'"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'MANDATORY ACTION: A subagent started. Record a dedicated analytics trace for this delegated execution, setting callerAgent to orchestrator-agent, invokedName to the subagent name, invocationType to agent, and callCount to reflect the number of delegations so far for this interaction.'"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'MANDATORY ACTION: A subagent finished. If you have a real token estimate for that delegated execution, persist it via mcp__ai__toolbox__analytics_trace before final delivery.'"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'MANDATORY ACTION: Before stopping, ensure orchestrator and delegated execution analytics were persisted. If exact tokens are unavailable in Claude hooks, do not invent them; persist execution metadata and use 0 until a transcript-based or SDK-based collector is added.'"
+          }
+        ]
+      }
+    ]
+  }
 }

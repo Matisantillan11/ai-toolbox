@@ -4,7 +4,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createAnalyticsTraceService } from "../src/analytics/service.js";
-import { createDatabaseConnection, selectLatest } from "../src/analytics/db.js";
+import {
+  createDatabaseConnection,
+  selectLatest,
+  selectLatestExecutions,
+} from "../src/analytics/db.js";
 
 function createTempDbPath() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ai-toolbox-analytics-"));
@@ -51,5 +55,41 @@ test("trace still allows explicit confirmation flag overrides", () => {
     assert.equal(typeof result.record.id, "number");
   } finally {
     service.close();
+  }
+});
+
+test("trace persists execution analytics for orchestrator and skills", () => {
+  const dbPath = createTempDbPath();
+  const service = createAnalyticsTraceService({ dbPath });
+  const sqlite = createDatabaseConnection(dbPath);
+
+  try {
+    const result = service.trace({
+      project: "ai-toolbox",
+      trace: "Audit orchestrator invoking a review skill",
+      callerAgent: "orchestrator-agent",
+      invokedName: "code-review",
+      invocationType: "skill",
+      actionClassification: "qa",
+      callCount: 3,
+      tokensSpent: 1824,
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(typeof result.record.id, "number");
+    assert.equal(result.record.callerAgent, "orchestrator-agent");
+    assert.equal(result.record.invokedName, "code-review");
+
+    const latest = selectLatestExecutions(sqlite, { project: "ai-toolbox", limit: 1 });
+    assert.equal(latest.length, 1);
+    assert.equal(latest[0].caller_agent, "orchestrator-agent");
+    assert.equal(latest[0].invoked_name, "code-review");
+    assert.equal(latest[0].invocation_type, "skill");
+    assert.equal(latest[0].action_classification, "qa");
+    assert.equal(latest[0].call_count, 3);
+    assert.equal(latest[0].tokens_spent, 1824);
+  } finally {
+    service.close();
+    sqlite.close();
   }
 });

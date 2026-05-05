@@ -1,7 +1,9 @@
+import { randomUUID } from "node:crypto";
 import { getDefaultProjectName } from "./config.js";
 import {
   createDatabaseConnection,
   initializeDatabase,
+  insertExecution,
   insertTrace,
 } from "./db.js";
 import { logError, logInfo } from "./logger.js";
@@ -16,6 +18,18 @@ export function createAnalyticsTraceService({ dbPath } = {}) {
   const sqlite = createDatabaseConnection(dbPath);
   initializeDatabase(sqlite);
 
+  function isExecutionPayload(input) {
+    return Boolean(
+      input.runId ||
+        input.callerAgent ||
+        input.invokedName ||
+        input.invocationType ||
+        input.actionClassification ||
+        typeof input.callCount === "number" ||
+        typeof input.tokensSpent === "number"
+    );
+  }
+
   function close() {
     sqlite.close();
   }
@@ -29,8 +43,8 @@ export function createAnalyticsTraceService({ dbPath } = {}) {
   /**
    * Persists a tracked analytics trace.
    *
-   * @param {{project?: string, area?: string, trace?: string, details?: string, status?: string, priority?: string, confirmedByUser?: boolean}} input Trace payload.
-   * @returns {{ok: boolean, record?: {id: number, project: string, area: string, timestamp: string}, error?: string}} Trace result.
+   * @param {{project?: string, area?: string, trace?: string, details?: string, status?: string, priority?: string, confirmedByUser?: boolean, runId?: string, callerAgent?: string, invokedName?: string, invocationType?: string, actionClassification?: string, callCount?: number, tokensSpent?: number}} input Trace payload.
+   * @returns {{ok: boolean, record?: object, error?: string}} Trace result.
    */
   function trace({
     project = getDefaultProjectName(),
@@ -40,8 +54,26 @@ export function createAnalyticsTraceService({ dbPath } = {}) {
     status = "open",
     priority = "medium",
     confirmedByUser = true,
+    runId,
+    callerAgent,
+    invokedName,
+    invocationType,
+    actionClassification,
+    callCount,
+    tokensSpent,
   }) {
-    if (!trace) {
+    const executionPayload = {
+      runId,
+      callerAgent,
+      invokedName,
+      invocationType,
+      actionClassification,
+      callCount,
+      tokensSpent,
+    };
+    const shouldTrackExecution = isExecutionPayload(executionPayload);
+
+    if (!trace && !shouldTrackExecution) {
       return {
         ok: false,
         error: "A trace is required.",
@@ -53,6 +85,56 @@ export function createAnalyticsTraceService({ dbPath } = {}) {
     const timestamp = new Date().toISOString();
 
     try {
+      if (shouldTrackExecution) {
+        if (!callerAgent || !invokedName) {
+          return {
+            ok: false,
+            error: "Execution traces require both callerAgent and invokedName.",
+          };
+        }
+
+        const executionRunId = runId ?? randomUUID();
+
+        const id = insertExecution(sqlite, {
+          runId: executionRunId,
+          project,
+          callerAgent,
+          invokedName,
+          invocationType: invocationType ?? "agent",
+          actionClassification: actionClassification ?? "research",
+          callCount: callCount ?? 1,
+          tokensSpent: tokensSpent ?? 0,
+          createdAt: timestamp,
+        });
+
+        logInfo("analytics.execution", {
+          project,
+          callerAgent,
+          invokedName,
+          invocationType: invocationType ?? "agent",
+          actionClassification: actionClassification ?? "research",
+          callCount: callCount ?? 1,
+          tokensSpent: tokensSpent ?? 0,
+          inserted: 1,
+        });
+
+        return {
+          ok: true,
+          record: {
+            id,
+            runId: executionRunId,
+            project,
+            callerAgent,
+            invokedName,
+            invocationType: invocationType ?? "agent",
+            actionClassification: actionClassification ?? "research",
+            callCount: callCount ?? 1,
+            tokensSpent: tokensSpent ?? 0,
+            timestamp,
+          },
+        };
+      }
+
       const id = insertTrace(sqlite, {
         project,
         area,

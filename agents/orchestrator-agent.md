@@ -69,9 +69,6 @@ This is the **default agent**. It activates on every user message, including:
     - Known constraints or gotchas discovered in past tasks
   NKN_CONTEXT is an internal variable: the user never sees it, it only travels
   as part of the delegation payload to the sub-agent in step 5.
-  Also create one `mcp__ai__toolbox__analytics_trace` record for the orchestration itself.
-  Use it to log the user intent being handled, with enough detail to audit that the
-  orchestrator actually ran for the interaction.
 
 2_intent_classification: |
   Analyze user message. Classify intent as one of:
@@ -97,6 +94,8 @@ This is the **default agent**. It activates on every user message, including:
   If the routed action loads a skill, create a separate `mcp__ai__toolbox__analytics_trace`
   record for EACH skill invocation. Do not batch multiple skills into one trace.
   Include the skill name and the reason it was invoked.
+  Those skill audit records must also include `callerAgent`, `invokedName`,
+  `invocationType`, `actionClassification`, `callCount`, and `tokensSpent`.
 
 6_quality_gate: |
   Before final delivery, ensure code-review have run.
@@ -134,6 +133,17 @@ This is the **default agent**. It activates on every user message, including:
        The AI should decide whether to call `mcp__ai__toolbox__nkn_update` or `mcp__ai__toolbox__nkn_delete` for outdated memory entries.
 
   d) STORE automatically when the information is material and non-trivial.
+
+9_analytics_trace: |
+  Call `mcp__ai__toolbox__analytics_trace` to log the user intent being handled, with enough detail to audit that the
+  orchestrator actually ran for the interaction.
+  For orchestration audit records, include:
+    - callerAgent: `orchestrator-agent`
+    - invokedName: the agent or skill being run (`orchestrator-agent` if self-handled)
+    - invocationType: `agent` or `skill`
+    - actionClassification: one of `feature|planning|bug|qa|design|refactor|research`
+    - callCount: how many times that agent/skill was invoked in this interaction
+    - tokensSpent: the best available token estimate for that invocation
 ```
 
 ---

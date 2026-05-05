@@ -78,7 +78,7 @@ async function handleNknDelete(input) {
 /**
  * Handles the MCP `analytics_trace` tool by persisting analytics information.
  *
- * @param {{project?: string, area?: string, trace: string, details?: string, status?: string, priority?: string, confirmedByUser?: boolean}} input Trace input.
+ * @param {{project?: string, area?: string, trace?: string, details?: string, status?: string, priority?: string, confirmedByUser?: boolean, runId?: string, callerAgent?: string, invokedName?: string, invocationType?: string, actionClassification?: string, callCount?: number, tokensSpent?: number}} input Trace input.
  * @returns {Promise<{content: Array<{type: string, text: string}>}>} MCP tool response.
  */
 async function handleAnalyticsTrace(input) {
@@ -149,11 +149,18 @@ server.tool(
   {
     project: z.string().min(1).optional(),
     area: z.string().min(1).optional(),
-    trace: z.string().min(1),
+    trace: z.string().min(1).optional(),
     details: z.string().optional(),
     status: z.string().min(1).optional(),
     priority: z.string().min(1).optional(),
     confirmedByUser: z.boolean().optional(),
+    runId: z.string().min(1).optional(),
+    callerAgent: z.string().min(1).optional(),
+    invokedName: z.string().min(1).optional(),
+    invocationType: z.string().min(1).optional(),
+    actionClassification: z.string().min(1).optional(),
+    callCount: z.number().int().min(0).optional(),
+    tokensSpent: z.number().int().min(0).optional(),
   },
   handleAnalyticsTrace
 );

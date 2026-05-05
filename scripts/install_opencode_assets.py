@@ -122,6 +122,20 @@ def copy_skills(source_dir: Path, target_skills_dir: Path) -> None:
         print(f"  ✅ Installed skill: {skill_path.name}")
 
 
+def copy_plugins(source_dir: Path, target_plugins_dir: Path) -> None:
+    plugins_dir = source_dir / "opencode-plugin"
+    target_plugins_dir.mkdir(parents=True, exist_ok=True)
+
+    print("\n🧩 Installing OpenCode plugins...")
+    for plugin_path in sorted(plugins_dir.glob("*.mjs")):
+        content = plugin_path.read_text(encoding="utf-8")
+        content = content.replace("__AI_TOOLBOX_REPO_ROOT__", str(source_dir))
+
+        destination = target_plugins_dir / plugin_path.name
+        destination.write_text(content, encoding="utf-8")
+        print(f"  ✅ Installed plugin: {plugin_path.name}")
+
+
 def render_permission_block() -> list[str]:
     return [
         "permission:",
@@ -217,6 +231,7 @@ def main() -> None:
 
     copy_skills(source_dir, target_root / "skills")
     export_agents(source_dir, target_root / "agents")
+    copy_plugins(source_dir, target_root / "plugins")
 
     print("\n🎉 OpenCode installation complete.")
     if args.global_install:

@@ -314,13 +314,13 @@ bash <(curl -s https://raw.githubusercontent.com/Matisantillan11/ai-toolbox/main
 Target behavior:
 - `claude`: adds the ai-toolbox marketplace and installs `ai-toolbox@matisantillan11-ai-toolbox`
 - `antigravity`: installs native Knowledge Items into `.gemini/`
-- `opencode`: installs skills into `.opencode/skills/` and agents into `.opencode/agents/`
+- `opencode`: installs skills into `.opencode/skills/`, agents into `.opencode/agents/`, and analytics plugins into `.opencode/plugins/`
 - `codex`: installs skills into `.agents/skills/`, exports custom agents into `.codex/agents/`, and configures Codex MCP in `~/.codex/config.toml`
 
 MCP behavior:
 - `learn-tool` is installed locally at `~/.ai-toolbox/repo/learn-tool`
 - when `claude` is selected, `~/.claude.json` is updated with the `ai__toolbox` server entry
-- when `opencode` is selected, `~/.config/opencode/opencode.json` is updated with the same server in the OpenCode `mcp` section
+- when `opencode` is selected, `~/.config/opencode/opencode.json` is updated with the same server in the OpenCode `mcp` section and sets `default_agent` to `orchestrator-agent`
 - when `antigravity` is selected, `~/.gemini/antigravity/mcp_config.json` is updated with the same server
 - when `codex` is selected, `~/.codex/config.toml` is updated with the same server as a Codex MCP entry
 
