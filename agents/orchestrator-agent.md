@@ -76,7 +76,7 @@ This is the **default agent**. It activates on every user message, including:
 
 2_intent_classification: |
   Analyze user message. Classify intent as one of:
-  new_feature | quick_task | implementation | refactor | design_system | code_review | knowledge_management | unknown.
+  new_feature | quick_task | implementation | refactor | design_system | code_review | create_pr | knowledge_management | unknown.
 
 3_context_gathering: |
   If a ClickUp ticket ID is mentioned, fetch its details.
@@ -197,6 +197,11 @@ code_review:
   when: User wants to review uncommitted or branch changes before a PR.
   sequence: code-review (Skill)
   first_hop: code-review
+
+create_pr:
+  when: User explicitly wants to open or prepare a Pull Request for work that already exists on the current branch.
+  sequence: pr-creator-agent
+  first_hop: pr-creator-agent
 
 knowledge_management:
   when: User explicitly asks to recall a past decision, store a new learning, or query the NKN.

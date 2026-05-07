@@ -14,6 +14,7 @@ Skills are reusable workflows invoked with a `/` command directly in Claude Code
 |---|---|---|
 | **init-project** | `/init-project` | Scans the codebase and generates an `AGENTS.md` with the detected stack, structure, and dev commands. Run this first on any new project. |
 | **code-review** | `/code-review` | Two-phase code review: fast pre-commit checks (spec compliance, type safety, security) followed by a deep SOLID / KISS / DRY structural audit. |
+| **security-auditor** | `/security-auditor` | Reviews the branch diff for security flaws and runs stack-native dependency audits when available before merge or PR creation. |
 | **a11y-auditor** | `/a11y-auditor` | Audits code or components for accessibility barriers against WCAG 2.2 (A, AA, AAA). Auto-detects web vs. mobile stack. |
 | **feature-discovery** | `/feature-discovery` | Acts as a functional analyst to gather all feature requirements through structured questioning. Outputs a comprehensive spec and optionally creates a ClickUp ticket. |
 | **plan-expert** | `/plan-expert` | Takes a ClickUp ticket or a free-form description and breaks it into detailed, ordered subtasks using a structured 8-section template. Creates subtasks on the ClickUp ticket or as a local task list. |
@@ -46,6 +47,7 @@ In OpenCode, the same agents are installed as optional agents without pinning th
 | **plan-expert-agent** | `quick_task`, `refactor`, or after discovery — decomposes specs into 8-section subtasks. |
 | **implement-task-agent** | `implementation` intent or after planning — writes code, runs review, commits, opens PR. |
 | **design-system-setup-agent** | `design_system` intent — design-expert → design-system-docs → plan-expert pipeline. |
+| **pr-creator-agent** | `create_pr` intent — runs code review, a dedicated security gate, conditional a11y audit for UI diffs, then opens the PR. |
 
 > **How to use:** Just describe what you want in natural language. The orchestrator routes automatically. Use `/` skills for direct, one-off invocations when you know exactly which step to run.
 
