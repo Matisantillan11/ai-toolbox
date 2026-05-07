@@ -48,6 +48,7 @@ In OpenCode, the same agents are installed as optional agents without pinning th
 | **implement-task-agent** | `implementation` intent or after planning — writes code, runs review, commits, opens PR. |
 | **design-system-setup-agent** | `design_system` intent — design-expert → design-system-docs → plan-expert pipeline. |
 | **pr-creator-agent** | `create_pr` intent — runs code review, a dedicated security gate, conditional a11y audit for UI diffs, then opens the PR. |
+| **general-execution-agent** | `unknown` intent — fallback executor for tasks with no dedicated specialist, driven by a structured delegation brief from the orchestrator. |
 
 > **How to use:** Just describe what you want in natural language. The orchestrator routes automatically. Use `/` skills for direct, one-off invocations when you know exactly which step to run.
 

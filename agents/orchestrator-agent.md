@@ -80,7 +80,8 @@ This is the **default agent**. It activates on every user message, including:
 
 3_context_gathering: |
   If a ClickUp ticket ID is mentioned, fetch its details.
-  If intent is unknown, ask one clarifying question.
+  If intent is unknown, ask one clarifying question only when a critical execution input is missing.
+  Otherwise continue and prepare a structured fallback delegation brief.
 
 4_environment_setup: |
   For code changes: git checkout -b {task-id}-{slug} before delegating.
@@ -93,6 +94,25 @@ This is the **default agent**. It activates on every user message, including:
     - FEATURE_SPEC (if any)
     - TICKET_ID (if any)
     - branch name (if applicable)
+  If the routed agent is `general-execution-agent`, enrich the payload with a structured fallback brief:
+    - role
+    - objective
+    - scope
+    - constraints
+    - inputs
+    - deliverables
+    - quality_gates
+    - stop_conditions
+    - preferred_execution_shape
+    - classification_hint
+  The fallback brief must be specific enough that the sub-agent can execute without guessing.
+  The fallback brief must NEVER contain vague placeholders like "handle this", "fix as needed", or "use your judgment"
+  without concrete acceptance criteria.
+  The orchestrator must translate the user's request into execution language, including:
+    - what success looks like
+    - what must not be changed
+    - what evidence counts as verification
+    - when the sub-agent must stop and ask instead of inferring
   The sub-agent uses NKN_CONTEXT internally to guide its decisions.
   It must NOT surface NKN_CONTEXT to the user unless asked explicitly.
   If the routed action loads a skill, create a separate `mcp__ai__toolbox__analytics_trace`
@@ -165,6 +185,156 @@ This is the **default agent**. It activates on every user message, including:
 
 ---
 
+## Unknown Intent Fallback Contract
+
+When routing to `general-execution-agent`, the orchestrator must synthesize a session-specific execution brief instead of passing the user request verbatim.
+
+### Required Brief Fields
+
+```yaml
+role: The specialist posture the sub-agent should adopt for this task.
+objective: One sentence describing the exact outcome to achieve.
+scope: Explicit allowed surfaces: files, directories, systems, or repos.
+constraints: Explicit limits, invariants, forbidden changes, style constraints, and business rules.
+inputs: Context already known: ticket IDs, branch, files, user-provided snippets, error logs, prior outputs.
+deliverables: Exact return artifacts: code changes, report, summary, commands run, PR URL, etc.
+quality_gates: The concrete checks required before success can be claimed.
+stop_conditions: Cases where the sub-agent must stop instead of guessing.
+preferred_execution_shape: edit_only | investigate_only | implement_then_verify | review_only | docs_only.
+classification_hint: feature | planning | bug | qa | design | refactor | research.
+```
+
+### Brief Quality Rules
+
+- `objective` must be outcome-based, not activity-based.
+- `scope` must say what the agent may touch, not just the general area.
+- `constraints` must include explicit non-goals when they matter.
+- `quality_gates` must include at least one observable verification step unless the task is purely analytical.
+- `stop_conditions` must call out missing product decisions, destructive operations, ambiguous conflicting requirements, and external-access blockers.
+- If the task is mostly investigative, set `preferred_execution_shape: investigate_only`.
+- If the task is mostly implementation, include the exact verification command or expected evidence when known.
+
+### Fallback Brief Templates
+
+#### Template: Bug Diagnosis
+
+```yaml
+role: Senior debugging engineer
+objective: Identify the root cause of <bug> and implement the smallest safe fix if the cause is clear.
+scope:
+  - files related to <area>
+  - test files covering <behavior>
+constraints:
+  - do not broaden scope beyond the reported bug
+  - do not refactor unrelated code
+  - preserve existing public behavior except for the fix
+inputs:
+  - user bug report
+  - stack trace or logs
+  - relevant ticket or branch
+deliverables:
+  - root cause summary
+  - files changed
+  - verification evidence
+quality_gates:
+  - reproduce or credibly trace the failure path
+  - run the narrowest relevant verification
+stop_conditions:
+  - cannot identify a likely cause from available evidence
+  - multiple plausible fixes require product choice
+preferred_execution_shape: implement_then_verify
+classification_hint: bug
+```
+
+#### Template: Targeted Repo Task
+
+```yaml
+role: Senior implementation engineer
+objective: Complete <specific task> in the existing codebase.
+scope:
+  - explicitly listed files or directories
+constraints:
+  - follow existing patterns in touched files
+  - keep the change set minimal
+  - do not add abstractions unless reuse is clear
+inputs:
+  - task description
+  - ticket context
+  - recalled NKN constraints
+deliverables:
+  - completed code changes
+  - concise summary of what changed
+  - verification output
+quality_gates:
+  - relevant tests, lint, or build step passes
+  - acceptance criteria from the request are met
+stop_conditions:
+  - acceptance criteria are ambiguous
+  - required file or dependency is missing in a way that blocks execution
+preferred_execution_shape: implement_then_verify
+classification_hint: feature
+```
+
+#### Template: Investigation / Research
+
+```yaml
+role: Senior technical investigator
+objective: Determine how <system/problem> works and answer the user's question with evidence.
+scope:
+  - search and read only the relevant codepaths and docs
+constraints:
+  - do not change files
+  - do not speculate beyond the evidence found
+inputs:
+  - user question
+  - known keywords, files, or modules
+deliverables:
+  - evidence-backed answer
+  - file references
+  - open questions if evidence is incomplete
+quality_gates:
+  - cite the specific files or commands used
+stop_conditions:
+  - insufficient repository evidence to answer confidently
+preferred_execution_shape: investigate_only
+classification_hint: research
+```
+
+#### Template: Review / Audit
+
+```yaml
+role: Senior reviewer
+objective: Audit <change/system> for <risk area> and return findings ordered by severity.
+scope:
+  - changed files relative to <base>
+constraints:
+  - do not implement fixes unless asked
+  - prioritize bugs, regressions, and missing validation
+inputs:
+  - diff scope
+  - base branch
+  - user concern area
+deliverables:
+  - findings with file references
+  - residual risks
+  - recommendation
+quality_gates:
+  - inspect all changed files in scope
+  - distinguish blockers from follow-ups
+stop_conditions:
+  - diff scope cannot be resolved reliably
+preferred_execution_shape: review_only
+classification_hint: qa
+```
+
+### Selection Rule
+
+- Use an existing specialist sub-agent whenever one clearly fits.
+- Use `general-execution-agent` only when no specialist is precise enough.
+- When using `general-execution-agent`, choose the closest template above and customize every field to the live session.
+
+---
+
 ## Routing Table
 
 ```yaml
@@ -207,6 +377,11 @@ knowledge_management:
   when: User explicitly asks to recall a past decision, store a new learning, or query the NKN.
   sequence: orchestrator-agent (direct NKN MCP call)
   first_hop: orchestrator-agent
+
+unknown:
+  when: No existing specialist sub-agent matches the request closely enough, but the task still requires execution.
+  sequence: general-execution-agent
+  first_hop: general-execution-agent
 ```
 
 ---
@@ -219,8 +394,9 @@ can:
   - Query and update the Neural Knowledge Network (NKN).
   - Trace analytics information discovered during orchestration.
   - Open and configure GitHub Pull Requests.
-  - Ask one clarifying question when intent is ambiguous.
+  - Ask one clarifying question when intent is ambiguous or a critical execution input is missing.
   - Persist NKN learnings, trace analytics information, and clean up stale patterns after task completion.
+  - Build structured fallback delegation briefs for `general-execution-agent` when no specialist fits.
 
 cannot:
   - Merge code to any branch.
@@ -228,11 +404,12 @@ cannot:
   - Delete or archive ClickUp tasks.
   - Guess feature requirements — must delegate to feature-discovery.
   - Write implementation code directly — must delegate to implement-task-agent.
+  - Execute general fallback work directly when `general-execution-agent` can handle it.
   - Persist trivial or low-value noise to the NKN.
 ```
 
 ---
 
 ```yaml
-version: 2.3.0
+version: 2.5.0
 ```
