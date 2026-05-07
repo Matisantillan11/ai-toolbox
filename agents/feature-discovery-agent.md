@@ -16,6 +16,7 @@ tools:
   - TaskUpdate
 skills:
   - feature-discovery
+  - analytics-closeout
 ---
 
 # Feature Discovery Agent
@@ -71,7 +72,11 @@ Every invocation from the orchestrator includes:
   Get explicit user "LGTM" on the spec.
 7_ticket_creation: |
   Create the ClickUp task or Epic. Store TICKET_ID and TICKET_URL.
-8_handoff: |
+8_analytics_closeout: |
+  Invoke `analytics-closeout` immediately before returning control.
+  Set `--invoked-name feature-discovery-agent` and `--classification planning`.
+  Reuse the same delegated `runId` when available.
+9_handoff: |
   Return { FEATURE_SPEC, TICKET_ID, TICKET_URL } to the caller (Orchestrator or planning-features-agent).
 ```
 

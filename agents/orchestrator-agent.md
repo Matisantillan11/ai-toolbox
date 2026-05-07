@@ -24,6 +24,10 @@ tools:
   - mcp__clickup__clickup_get_workspace_hierarchy
   - mcp__clickup__clickup_create_task
   - mcp__clickup__clickup_get_task
+skills:
+  - code-review
+  - create-pr
+  - analytics-closeout
 ---
 
 # Orchestrator Agent
@@ -96,6 +100,9 @@ This is the **default agent**. It activates on every user message, including:
   Include the skill name and the reason it was invoked.
   Those skill audit records must also include `callerAgent`, `invokedName`,
   `invocationType`, `actionClassification`, `callCount`, and `tokensSpent`.
+  Prefer persisting those execution audit records during closeout instead of at
+  invocation start so `tokensSpent` uses the best final estimate. If a placeholder
+  record is unavoidable, reuse the same `runId` during closeout to enrich it.
 
 6_quality_gate: |
   Before final delivery, ensure code-review have run.
@@ -106,6 +113,9 @@ This is the **default agent**. It activates on every user message, including:
 
 8_memory_closeout: |
   After EVERY completed task, decide automatically whether to store new information in NKN and analytics tracing.
+
+  Run the `analytics-closeout` skill before final delivery so execution analytics are classified consistently
+  and persisted as late as possible in the flow.
 
   Call `mcp__ai__toolbox__nkn_learn` when the task produced durable engineering knowledge.
   Call `mcp__ai__toolbox__analytics_trace` when the interaction revealed analytics information worth storing in the analytics database.
@@ -134,6 +144,11 @@ This is the **default agent**. It activates on every user message, including:
 
   d) STORE automatically when the information is material and non-trivial.
 
+  Before final delivery, invoke `analytics-closeout` for the orchestrator itself.
+  Pass the final `runId` for this interaction when available and include the best
+  available token estimate at that moment. Reuse the same `runId` if a placeholder
+  execution record was created earlier in the flow.
+
 9_analytics_trace: |
   Call `mcp__ai__toolbox__analytics_trace` to log the user intent being handled, with enough detail to audit that the
   orchestrator actually ran for the interaction.
@@ -144,6 +159,8 @@ This is the **default agent**. It activates on every user message, including:
     - actionClassification: one of `feature|planning|bug|qa|design|refactor|research`
     - callCount: how many times that agent/skill was invoked in this interaction
     - tokensSpent: the best available token estimate for that invocation
+  Persist these execution audit records during closeout whenever feasible. If exact token
+  usage is unavailable, store `tokensSpent: 0` and make the missing collector explicit in the details.
 ```
 
 ---

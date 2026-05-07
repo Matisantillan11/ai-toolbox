@@ -184,6 +184,69 @@ export function insertExecution(sqlite, record) {
 }
 
 /**
+ * Inserts or updates an execution audit record keyed by run id.
+ *
+ * This lets an agent persist a placeholder execution early and enrich it later
+ * with a better token count during closeout without creating duplicate rows.
+ *
+ * @param {DatabaseSync} sqlite Open SQLite connection.
+ * @param {{runId: string, project: string, callerAgent: string, invokedName: string, invocationType: string, actionClassification: string, callCount: number, tokensSpent: number, createdAt: string}} record Execution payload.
+ * @returns {number} Row id for the inserted or updated execution.
+ */
+export function upsertExecution(sqlite, record) {
+  if (!executionInvocationTypes.has(record.invocationType)) {
+    throw new Error(`Invalid invocation type: ${record.invocationType}`);
+  }
+
+  if (!executionActionClassifications.has(record.actionClassification)) {
+    throw new Error(`Invalid action classification: ${record.actionClassification}`);
+  }
+
+  const statement = sqlite.prepare(`
+    INSERT INTO analytics_executions (
+      run_id,
+      project,
+      caller_agent,
+      invoked_name,
+      invocation_type,
+      action_classification,
+      call_count,
+      tokens_spent,
+      created_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(run_id) DO UPDATE SET
+      project = excluded.project,
+      caller_agent = excluded.caller_agent,
+      invoked_name = excluded.invoked_name,
+      invocation_type = excluded.invocation_type,
+      action_classification = excluded.action_classification,
+      call_count = MAX(analytics_executions.call_count, excluded.call_count),
+      tokens_spent = CASE
+        WHEN excluded.tokens_spent > 0 OR analytics_executions.tokens_spent = 0 THEN excluded.tokens_spent
+        ELSE analytics_executions.tokens_spent
+      END
+  `);
+  statement.run(
+    record.runId,
+    record.project,
+    record.callerAgent,
+    record.invokedName,
+    record.invocationType,
+    record.actionClassification,
+    record.callCount,
+    record.tokensSpent,
+    record.createdAt
+  );
+
+  const row = sqlite
+    .prepare("SELECT id FROM analytics_executions WHERE run_id = ?")
+    .get(record.runId);
+
+  return Number(row.id);
+}
+
+/**
  * Returns the most recent traces, optionally scoped to a single project.
  *
  * @param {DatabaseSync} sqlite Open SQLite connection.

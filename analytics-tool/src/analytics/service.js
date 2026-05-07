@@ -3,8 +3,8 @@ import { getDefaultProjectName } from "./config.js";
 import {
   createDatabaseConnection,
   initializeDatabase,
-  insertExecution,
   insertTrace,
+  upsertExecution,
 } from "./db.js";
 import { logError, logInfo } from "./logger.js";
 
@@ -95,7 +95,7 @@ export function createAnalyticsTraceService({ dbPath } = {}) {
 
         const executionRunId = runId ?? randomUUID();
 
-        const id = insertExecution(sqlite, {
+        const id = upsertExecution(sqlite, {
           runId: executionRunId,
           project,
           callerAgent,
@@ -115,7 +115,7 @@ export function createAnalyticsTraceService({ dbPath } = {}) {
           actionClassification: actionClassification ?? "research",
           callCount: callCount ?? 1,
           tokensSpent: tokensSpent ?? 0,
-          inserted: 1,
+          upserted: 1,
         });
 
         return {

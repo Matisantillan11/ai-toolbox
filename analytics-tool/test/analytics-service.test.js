@@ -93,3 +93,43 @@ test("trace persists execution analytics for orchestrator and skills", () => {
     sqlite.close();
   }
 });
+
+test("trace updates an existing execution when the same runId is finalized later", () => {
+  const dbPath = createTempDbPath();
+  const service = createAnalyticsTraceService({ dbPath });
+  const sqlite = createDatabaseConnection(dbPath);
+
+  try {
+    service.trace({
+      project: "ai-toolbox",
+      runId: "run-finalize-1",
+      callerAgent: "orchestrator-agent",
+      invokedName: "implement-task-agent",
+      invocationType: "agent",
+      actionClassification: "feature",
+      callCount: 1,
+      tokensSpent: 0,
+    });
+
+    const result = service.trace({
+      project: "ai-toolbox",
+      runId: "run-finalize-1",
+      callerAgent: "orchestrator-agent",
+      invokedName: "implement-task-agent",
+      invocationType: "agent",
+      actionClassification: "feature",
+      callCount: 1,
+      tokensSpent: 2410,
+    });
+
+    assert.equal(result.ok, true);
+
+    const latest = selectLatestExecutions(sqlite, { project: "ai-toolbox", limit: 10 });
+    assert.equal(latest.length, 1);
+    assert.equal(latest[0].run_id, "run-finalize-1");
+    assert.equal(latest[0].tokens_spent, 2410);
+  } finally {
+    service.close();
+    sqlite.close();
+  }
+});

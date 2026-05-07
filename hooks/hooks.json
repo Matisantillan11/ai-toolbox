@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'MANDATORY ACTION: Always use the orchestrator-agent. Call mcp__ai__toolbox__nkn_recall at the start of relevant tasks. Record one analytics trace for the orchestrator execution itself and include callerAgent, invokedName, invocationType, actionClassification, callCount, and tokensSpent. Record one additional analytics trace for each skill invocation individually with the same execution fields. For significant decisions, automatically decide whether to call mcp__ai__toolbox__nkn_learn. At the end of each user interaction, also decide whether to call mcp__ai__toolbox__analytics_trace for analytics information that should be stored.'"
+            "command": "echo 'MANDATORY ACTION: Always use the orchestrator-agent. Call mcp__ai__toolbox__nkn_recall at the start of relevant tasks. Capture execution metadata early, but persist or finalize execution analytics at the end of the interaction whenever possible so tokensSpent can use the best available final estimate. Reuse the same runId if an earlier placeholder execution was stored. For significant decisions, automatically decide whether to call mcp__ai__toolbox__nkn_learn. At the end of each user interaction, also decide whether to call mcp__ai__toolbox__analytics_trace for analytics information that should be stored.'"
           }
         ]
       }
@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'MANDATORY ACTION: A subagent started. Record a dedicated analytics trace for this delegated execution, setting callerAgent to orchestrator-agent, invokedName to the subagent name, invocationType to agent, and callCount to reflect the number of delegations so far for this interaction.'"
+            "command": "echo 'MANDATORY ACTION: A subagent started. Capture a stable runId and the execution metadata for this delegated run, but avoid persisting placeholder tokensSpent=0 unless you cannot finalize the record later.'"
           }
         ]
       }
@@ -37,7 +37,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'MANDATORY ACTION: A subagent finished. If you have a real token estimate for that delegated execution, persist it via mcp__ai__toolbox__analytics_trace before final delivery.'"
+            "command": "echo 'MANDATORY ACTION: A subagent finished. Finalize the delegated execution analytics now when possible, reusing the same runId so the record can be enriched with the best available token estimate before final delivery.'"
           }
         ]
       }
@@ -47,7 +47,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'MANDATORY ACTION: Before stopping, ensure orchestrator and delegated execution analytics were persisted. If exact tokens are unavailable in Claude hooks, do not invent them; persist execution metadata and use 0 until a transcript-based or SDK-based collector is added.'"
+            "command": "echo 'MANDATORY ACTION: Before stopping, ensure orchestrator and delegated execution analytics were finalized. If exact tokens are unavailable in Claude hooks, do not invent them; persist execution metadata with tokensSpent=0 and explicitly note that a transcript-based or SDK-based collector is still missing.'"
           }
         ]
       }

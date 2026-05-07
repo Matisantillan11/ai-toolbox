@@ -23,6 +23,7 @@ skills:
   - implement-task
   - code-review
   - create-pr
+  - analytics-closeout
 ---
 
 # Implement Task Agent
@@ -83,7 +84,15 @@ Every invocation from the orchestrator includes:
   Verify every acceptance criterion from the subtask is met.
 6_pr_creation: |
   Invoke `create-pr` skill to open a Pull Request.
-7_return: |
+7_analytics_closeout: |
+  Invoke `analytics-closeout` immediately before returning control.
+  Set `--invoked-name implement-task-agent` and classify from intent:
+    - `implementation` -> `feature`
+    - `refactor` -> `refactor`
+    - bugfix-oriented tasks -> `bug`
+  Reuse the same delegated `runId` when available so any earlier placeholder
+  execution record is finalized instead of duplicated.
+8_return: |
   Return { PR_URL, task status } to the Orchestrator.
 ```
 

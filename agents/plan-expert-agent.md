@@ -21,6 +21,7 @@ tools:
   - TaskUpdate
 skills:
   - plan-expert
+  - analytics-closeout
 ---
 
 # Plan Expert Agent
@@ -77,7 +78,11 @@ Every invocation from the orchestrator includes:
   Present the full plan to the user. Wait for explicit confirmation before proceeding.
 7_deployment: |
   Create subtasks in ClickUp (linked to parent) or as a local task list.
-8_return: |
+8_analytics_closeout: |
+  Invoke `analytics-closeout` immediately before returning control.
+  Set `--invoked-name plan-expert-agent` and `--classification planning`.
+  Reuse the same delegated `runId` when available.
+9_return: |
   Signal completion to the Orchestrator with the subtask list and TICKET_ID.
 ```
 

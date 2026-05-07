@@ -23,6 +23,7 @@ Skills are reusable workflows invoked with a `/` command directly in Claude Code
 | **planning-features** | `/planning-features` | End-to-end feature planning. Runs `feature-discovery` then `plan-expert` back to back — gathers requirements, creates a ClickUp ticket, and breaks it into an execution plan. |
 | **create-pr** | `/create-pr` | Creates a GitHub PR with a fully auto-populated standardized template. Infers base branch, derives description from the diff, detects shared code impact, tags stakeholders from CODEOWNERS, and builds a concrete test plan. Designed to run without human input when called by an agent. |
 | **implement-task** | `/implement-task` | Implements a task end-to-end. Given a ClickUp ticket ID or description, reads project context, plans at the file level, writes the code, runs automated checks + `code-review`, applies fixes, commits, and opens a PR via `create-pr`. |
+| **analytics-closeout** | `/analytics-closeout` | End-of-flow execution closeout. Classifies the work that just finished, summarizes why the trace matters, and persists a final analytics execution record with the best available token estimate. |
 
 ### Agents
 
