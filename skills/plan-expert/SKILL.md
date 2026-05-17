@@ -1,6 +1,6 @@
 ---
 name: plan-expert
-description: Plans how to execute a task or feature by breaking it into detailed, actionable subtasks. Accepts a ClickUp ticket ID or a free-form description. If a ticket is provided, fetches it via ClickUp MCP and creates subtasks directly on the ticket. If a description is provided, creates a temporary local task list covering everything needed to achieve the goal.
+description: Plans how to execute a task or feature by producing a Software Design Document (SDD) and breaking the work into detailed, actionable subtasks. Accepts a ClickUp ticket ID or a free-form description. If a ticket is provided, fetches it via ClickUp MCP and creates subtasks directly on the ticket. If a description is provided, creates a temporary local task list. The SDD is returned as a first-class artifact for downstream agents.
 argument-hint: [--ticket-id <id>] [--description "<text>"]
 allowed-tools: Read Grep Glob Bash AskUserQuestion mcp__clickup__clickup_get_task mcp__clickup__clickup_create_task mcp__clickup__clickup_get_workspace_hierarchy TaskCreate TaskUpdate
 effort: medium
@@ -8,8 +8,8 @@ effort: medium
 
 # plan-expert
 
-**Role:** Senior Technical Project Planner.  
-**Goal:** Decompose a task, ticket, or description into a precise, ordered, actionable execution plan with enough detail that any engineer on the team can pick up and implement each step independently.
+**Role:** Senior Technical Architect.  
+**Goal:** Decompose a task, ticket, or description into a **Software Design Document (SDD)** and a precise, ordered sequence of actionable subtasks — with enough detail that any engineer on the team can pick up and implement each step independently without further clarification.
 
 ---
 
@@ -45,7 +45,7 @@ Parse `$ARGUMENTS` to extract `--ticket-id` and `--description`.
 Use `AskUserQuestion` with:
 - Question: "What do you want to plan?"
 - Header: "Plan Expert"
-- Accept free-form text. Treat the answer as the `--description` input and continue to Step 2B.
+- Accept free-form text. Treat the answer as the `--description` input and continue to Step 2.
 
 **Case B — `--ticket-id` provided:**  
 Fetch the ticket using the ClickUp MCP:
@@ -69,9 +69,9 @@ Fetch the ticket as in Case B. Treat the `--description` as a scope modifier or 
 
 ---
 
-## Step 2 — Analyze & Decompose
+## Step 2 — Analyze
 
-Read the resolved input (ticket content and/or description) carefully. Think as a senior engineer scoping a sprint ticket.
+Read the resolved input carefully. Think as a senior engineer scoping a sprint ticket.
 
 ### 2.1 Identify the goal
 
@@ -92,35 +92,79 @@ For each of the following areas, decide if it is relevant to this task. Only inc
 - **Security** — input validation, secrets, permissions
 - **Performance** — caching, pagination, query optimization
 
-### 2.3 Decompose into subtasks
+### 2.3 Explore the codebase
 
-Break the work into sequential subtasks. Each subtask must:
-- Have a clear, imperative title starting with a verb (e.g., "Add `POST /auth/login` endpoint", "Write unit tests for TokenService")
-- Be independently completable by one engineer
-- Be scoped to a single concern — avoid "and" in the title
-- Be populated using the **Subtask Template** defined in Step 3
+Use Grep/Glob/Read to map the affected area:
+- Locate files and modules the task will touch
+- Identify existing patterns, shared utilities, and naming conventions to follow
+- Check `AGENTS.md` and `DESIGN.md` (if present) for stack rules and design constraints
 
-Order subtasks from foundational to dependent (data layer → logic → API → UI → tests → docs).
-
-Aim for 4–10 subtasks for most tasks. If the task is very large, note that it should be split into separate tickets after planning.
-
-Every field in the template is required. If a field genuinely does not apply (e.g., "Out of scope" has nothing notable), write "N/A" — never omit the field.
+This codebase reading is the foundation for both the SDD and the subtask breakdown.
 
 ---
 
-## Step 3 — Output the Plan
+## Step 3 — Generate the SDD
 
-> **MANDATORY TEMPLATE RULE**
-> Every subtask — without exception — must be written using the template below.
-> All 8 sections are required in every subtask, both in this preview and in what gets written to ClickUp or local files.
-> If a section has nothing to say, write `N/A`. Never skip, collapse, or summarize a section.
+Produce a Software Design Document (SDD) from the analysis in Step 2. The SDD is the architectural contract that governs how the feature must be implemented and verified.
 
-Present the full plan before taking any write actions:
+> **MANDATORY SDD RULE**  
+> Every field is required. If a section genuinely does not apply, write `N/A` — never omit the field.
 
 ```
-## Plan: <task title or goal>
+## Software Design Document: <feature title>
 
-**Goal:** <one-sentence objective — what must be true when this is done>
+### Overview
+<One paragraph: what this feature does, why it exists, and its user-facing impact.>
+
+### Architecture
+<How this feature fits the existing system. Which layers are involved (API, UI, DB, etc.).
+Note any structural decisions (e.g. new service vs. extending existing one).>
+
+### Data Model
+<New entities, modified fields, or schema changes required. Include migration notes if applicable.
+Write "N/A" if no data model changes are needed.>
+
+### Interface Contracts
+<New or modified API endpoints (method, path, request body, response shape, error cases).
+For UI: key component props and state shape.
+Write "N/A" if none.>
+
+### Integration Points
+<External services, third-party SDKs, or shared internal utilities that will be used or modified.
+Write "N/A" if none.>
+
+### Security & Validation
+<Input validation rules, authentication/authorization requirements, and data sensitivity notes.
+Write "N/A" if none.>
+
+### System-Level Acceptance Criteria
+- [ ] <Verifiable criterion — written so a reviewer can confirm it without asking questions>
+- [ ] <Add as many as needed — these are verified by verify-task-agent after implementation>
+
+### Out of Scope
+<Explicitly excluded from this feature. Be specific.>
+
+### Testing Strategy
+<What must be tested (unit, integration, E2E) and against which components or flows.>
+```
+
+---
+
+## Step 4 — Output the SDD and Subtask Plan
+
+> **MANDATORY TEMPLATE RULE**  
+> Every subtask — without exception — must be written using the template below.  
+> All 8 sections are required in every subtask.  
+> If a section has nothing to say, write `N/A`. Never skip, collapse, or summarize a section.
+
+Present the full SDD from Step 3 first, then the complete subtask breakdown:
+
+```
+---
+
+## Subtask Breakdown
+
+**Goal:** <one-sentence objective>
 **Scope:** <comma-separated concern areas from 2.2>
 **Subtasks:** <count>
 
@@ -129,17 +173,17 @@ Present the full plan before taking any write actions:
 ### Subtask 1 — <imperative title starting with a verb>
 
 #### Context
-<Why this subtask exists and how it fits the overall goal. One or two sentences.>
+<Why this subtask exists and how it fits the SDD. Reference the relevant SDD section if applicable.>
 
 #### What to implement
-<Detailed description of the work — no ambiguity. Use bullet points for multi-part work.>
+<Detailed description — no ambiguity. Use bullet points for multi-part work.>
 
 #### Where
-<Specific file paths, modules, or layers involved. If not inferable, write the closest known location.>
+<Specific file paths, modules, or layers involved. Align with the SDD Architecture and Data Model.>
 
 #### Acceptance criteria
-- [ ] <Specific, testable criterion — written so a reviewer can verify it without asking questions>
-- [ ] <Add as many criteria as needed>
+- [ ] <Specific, testable criterion>
+- [ ] <Add as many as needed>
 
 #### Out of scope
 <Explicitly list what this subtask must NOT do. If nothing notable, write "N/A".>
@@ -148,7 +192,7 @@ Present the full plan before taking any write actions:
 <"Subtask N — <title>" for each blocker. If none, write "None".>
 
 #### Technical notes
-<Implementation hints, known edge cases, gotchas, or relevant prior art in the codebase. If nothing notable, write "N/A".>
+<Implementation hints, known edge cases, gotchas, or relevant prior art. If nothing notable, write "N/A".>
 
 #### Definition of done
 - [ ] Implementation satisfies all acceptance criteria above
@@ -194,36 +238,44 @@ Present the full plan before taking any write actions:
 (repeat the full template for every subsequent subtask)
 ```
 
-After presenting the plan, ask:
+Order subtasks from foundational to dependent (data layer → logic → API → UI → tests → docs).
 
-> "Does this plan look correct? Should I proceed to create the subtasks?"
+Aim for 4–10 subtasks. If the task is very large, note that it should be split into separate tickets.
 
-Wait for user confirmation before proceeding to Step 4.
+After presenting the SDD and subtask plan, ask:
+
+> "Does this design and plan look correct? Should I proceed to create the subtasks?"
+
+Wait for user confirmation before proceeding to Step 5.
 
 ---
 
-## Step 4 — Write Subtasks
+## Step 5 — Write Subtasks
 
 ### If `--ticket-id` was provided (Case B or D):
 
-Fetch the parent task's `list` field to get the correct `list_id`. Create each subtask in order (1 → N) using:
+Fetch the parent task's `list` field to get the correct `list_id`. Store the SDD as a comment or in the parent task description (prepend it if not already present). Create each subtask in order (1 → N) using:
 
 ```
 mcp__clickup__clickup_create_task {
   list_id: "<same list as parent task>",
   name: "<subtask title>",
-  description: "<full subtask body using the template from Step 3 — all sections included>",
+  description: "<full subtask body using the template from Step 4 — all 8 sections included>",
   parent: "<ticket-id>"
 }
 ```
 
-The `description` field must be the complete rendered template for that subtask exactly as presented in Step 3 — all 8 sections in order: Context, What to implement, Where, Acceptance criteria, Out of scope, Depends on, Technical notes, Definition of done. Do not abbreviate, merge, or omit any section. A task created without all 8 sections is invalid.
+The `description` field must be the complete rendered template — all 8 sections in order: Context, What to implement, Where, Acceptance criteria, Out of scope, Depends on, Technical notes, Definition of done. Do not abbreviate, merge, or omit any section.
 
 After all subtasks are created, report:
 
 ```
-## Subtasks Created
+## Plan Complete
 
+### Software Design Document
+<SDD from Step 3 — full text>
+
+### Subtasks Created
 ✅ Subtask 1 — <title> (id: ...)
 ✅ Subtask 2 — <title> (id: ...)
 ...
@@ -233,24 +285,44 @@ All subtasks have been added to ticket <ticket-id>.
 
 ### If only `--description` was provided (Case C):
 
-Create a local task using `TaskCreate` for each subtask. Set the task title to the subtask title and the body to the complete rendered template from Step 3 — all 8 sections in order: Context, What to implement, Where, Acceptance criteria, Out of scope, Depends on, Technical notes, Definition of done. Do not abbreviate, merge, or omit any section. Report:
+Create a local task using `TaskCreate` for each subtask. Set the task title to the subtask title and the body to the complete rendered template from Step 4 — all 8 sections in order. Report:
 
 ```
-## Task List Created (local)
+## Plan Complete
 
+### Software Design Document
+<SDD from Step 3 — full text>
+
+### Task List Created (local)
 ✅ Task 1 — <title>
 ✅ Task 2 — <title>
 ...
 
-These tasks are local to this session. To persist them, run `/plan-expert --ticket-id <id>` with an existing ClickUp ticket, or create a new ticket manually and re-run with that ID.
+These tasks are local to this session. To persist them to ClickUp, run
+`/plan-expert --ticket-id <id>` with an existing ClickUp ticket.
+```
+
+---
+
+## Return Value
+
+When invoked as a sub-skill (by `plan-expert-agent`), return the following structured payload to the caller before any other output:
+
+```yaml
+SDD: <full SDD text from Step 3>
+subtask_list:
+  - id: <created task id or local id>
+    title: <subtask title>
+TICKET_ID: <ticket-id if available, otherwise null>
 ```
 
 ---
 
 ## Constraints
 
-- **Every task written — to ClickUp or locally — must use the mandatory 8-section template defined in Step 3. No exceptions. A task missing any section is incomplete and must not be created.**
-- Do not invent technical details that cannot be inferred from the input. If a detail is ambiguous, note it explicitly in the subtask description as: `⚠️ Clarify: <question>`.
-- Do not create subtasks for work that is already marked as done in the existing ticket subtasks.
-- Do not skip the user confirmation step between Step 3 and Step 4.
+- **Every task written — to ClickUp or locally — must use the mandatory 8-section template defined in Step 4. No exceptions. A task missing any section is incomplete and must not be created.**
+- The SDD is mandatory output. Do not skip SDD generation even for small tasks.
+- Do not invent technical details that cannot be inferred from the input. If a detail is ambiguous, note it explicitly in the subtask or SDD as: `⚠️ Clarify: <question>`.
+- Do not create subtasks for work that is already marked as done in existing ticket subtasks.
+- Do not skip the user confirmation step between Step 4 and Step 5.
 - If the ticket is in a "done" or "closed" status, warn the user before proceeding: "This ticket appears to be already closed. Do you still want to create subtasks on it?"

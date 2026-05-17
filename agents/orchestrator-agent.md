@@ -25,7 +25,6 @@ tools:
   - mcp__clickup__clickup_create_task
   - mcp__clickup__clickup_get_task
 skills:
-  - code-review
   - create-pr
   - analytics-closeout
 ---
@@ -93,7 +92,13 @@ This is the **default agent**. It activates on every user message, including:
     - NKN_CONTEXT  ← the recall result from step 1, passed as structured input
     - FEATURE_SPEC (if any)
     - TICKET_ID (if any)
+    - SDD  ← passed from plan-expert-agent output; required by implement-task-agent and verify-task-agent
     - branch name (if applicable)
+  SDD passing rules:
+    - After plan-expert-agent returns, store its SDD payload as SDD_CONTEXT.
+    - Pass SDD_CONTEXT to implement-task-agent and verify-task-agent in every subsequent hop.
+    - If routing directly to implement-task-agent (implementation intent) and no SDD is available,
+      route to plan-expert-agent first to generate one. Do not skip this step.
   If the routed agent is `general-execution-agent`, enrich the payload with a structured fallback brief:
     - role
     - objective
@@ -125,11 +130,17 @@ This is the **default agent**. It activates on every user message, including:
   record is unavoidable, reuse the same `runId` during closeout to enrich it.
 
 6_quality_gate: |
-  Before final delivery, ensure code-review have run.
+  After implement-task-agent returns, route to verify-task-agent before opening any PR.
+  Pass: intent, NKN_CONTEXT, SDD_CONTEXT, branch, base_branch, TICKET_ID.
+  verify-task-agent returns verification_status: pass | fail.
+  If fail: route blocking_issues back to implement-task-agent. Repeat until pass.
+  If pass: proceed to delivery.
+  This loop is the mandatory quality gate. A PR must never be opened without a PASS verdict.
 
 7_delivery: |
-  Invoke `create-pr` skill and close the orchestration loop.
-  Report outcome to the user.
+  After verify-task-agent returns verification_status: pass,
+  invoke `create-pr` skill with --base <base_branch> --ticket-id <TICKET_ID>.
+  Close the orchestration loop and report outcome to the user.
 
 8_memory_closeout: |
   After EVERY completed task, decide automatically whether to store new information in NKN and analytics tracing.
@@ -345,17 +356,19 @@ new_feature:
 
 quick_task:
   when: Well-defined task with no scope ambiguity. ClickUp ticket ID often provided.
-  sequence: plan-expert-agent → implement-task-agent → create-pr
+  sequence: plan-expert-agent (→ SDD) → implement-task-agent → verify-task-agent → create-pr
   first_hop: plan-expert-agent
+  note: plan-expert-agent produces the SDD; orchestrator stores it as SDD_CONTEXT and passes it to all subsequent hops.
 
 implementation:
   when: Plan already exists; user wants code written immediately.
-  sequence: implement-task-agent → create-pr
-  first_hop: implement-task-agent
+  sequence: [plan-expert-agent if no SDD] → implement-task-agent → verify-task-agent → create-pr
+  first_hop: implement-task-agent if SDD is available in ticket; otherwise plan-expert-agent first.
+  note: An SDD is required before implement-task-agent can run. If the ticket has no SDD, generate one.
 
 refactor:
   when: Improving existing code structure without changing behavior.
-  sequence: plan-expert-agent → implement-task-agent → create-pr
+  sequence: plan-expert-agent (→ SDD) → implement-task-agent → verify-task-agent → create-pr
   first_hop: plan-expert-agent
 
 design_system:
@@ -405,11 +418,12 @@ cannot:
   - Guess feature requirements — must delegate to feature-discovery.
   - Write implementation code directly — must delegate to implement-task-agent.
   - Execute general fallback work directly when `general-execution-agent` can handle it.
+  - Open a PR without a verify-task-agent PASS verdict.
   - Persist trivial or low-value noise to the NKN.
 ```
 
 ---
 
 ```yaml
-version: 2.5.0
+version: 3.0.0
 ```
