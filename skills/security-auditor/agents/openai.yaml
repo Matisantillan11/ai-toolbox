@@ -1,0 +1,4 @@
+interface:
+  display_name: "Security Auditor"
+  short_description: "Audit changed files for security issues before merge"
+  default_prompt: "Use $security-auditor to audit this branch for security issues."

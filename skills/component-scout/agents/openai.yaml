@@ -1,0 +1,4 @@
+interface:
+  display_name: "Component Scout"
+  short_description: "Inventory and classify UI components for reuse"
+  default_prompt: "Use $component-scout to find reusable components for this feature."

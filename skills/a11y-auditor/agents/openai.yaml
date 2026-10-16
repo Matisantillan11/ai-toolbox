@@ -1,0 +1,4 @@
+interface:
+  display_name: "Accessibility Auditor"
+  short_description: "Audit code for WCAG 2.2 accessibility barriers"
+  default_prompt: "Use $a11y-auditor to check this code for accessibility issues."

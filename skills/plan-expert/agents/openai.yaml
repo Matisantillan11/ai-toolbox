@@ -1,0 +1,10 @@
+interface:
+  display_name: "Plan Expert"
+  short_description: "Plan tasks with an SDD and actionable subtasks"
+  default_prompt: "Use $plan-expert to plan how to implement this task."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "ai__toolbox"
+      description: "AI Toolbox NKN and analytics MCP server"

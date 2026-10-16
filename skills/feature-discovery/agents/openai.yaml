@@ -1,0 +1,4 @@
+interface:
+  display_name: "Feature Discovery"
+  short_description: "Gather all feature requirements through structured questioning"
+  default_prompt: "Use $feature-discovery to define the requirements for this feature."

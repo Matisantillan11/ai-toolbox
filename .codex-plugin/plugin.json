@@ -1,0 +1,45 @@
+{
+  "name": "ai-toolbox",
+  "version": "1.2.0",
+  "description": "A curated set of skills and agents for software teams. Covers accessibility auditing, code review, project initialization, design system management, and an end-to-end feature planning workflow backed by ClickUp.",
+  "author": {
+    "name": "Matias Santillan",
+    "email": "matias1.santillan@gmail.com",
+    "url": "https://github.com/Matisantillan11"
+  },
+  "homepage": "https://github.com/Matisantillan11/ai-toolbox",
+  "repository": "https://github.com/Matisantillan11/ai-toolbox",
+  "license": "MIT",
+  "keywords": [
+    "ai",
+    "toolbox",
+    "skills",
+    "agents",
+    "code-review",
+    "accessibility",
+    "planning",
+    "clickup",
+    "design-system",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "hooks": "./hooks/codex-hooks.json",
+  "interface": {
+    "displayName": "AI Toolbox",
+    "shortDescription": "Skills and agents for software teams",
+    "longDescription": "A curated set of skills and agents for software teams. Covers accessibility auditing, code review, project initialization, design system management, and an end-to-end feature planning workflow backed by ClickUp. Includes a Neural Knowledge Network (NKN) MCP server for persistent architectural decisions.",
+    "developerName": "Matias Santillan",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/Matisantillan11/ai-toolbox",
+    "defaultPrompt": [
+      "Use $plan-expert to plan out this task",
+      "Use $code-review to review my current changes",
+      "Use $a11y-auditor to check accessibility"
+    ]
+  }
+}

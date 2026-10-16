@@ -1,0 +1,4 @@
+interface:
+  display_name: "Design System Docs"
+  short_description: "Audit Storybook setup against the canonical baseline"
+  default_prompt: "Use $design-system-docs to audit the Storybook documentation."

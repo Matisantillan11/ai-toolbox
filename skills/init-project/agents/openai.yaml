@@ -1,0 +1,4 @@
+interface:
+  display_name: "Init Project"
+  short_description: "Detect tech stack and generate AGENTS.md"
+  default_prompt: "Use $init-project to scan this codebase and generate AGENTS.md."

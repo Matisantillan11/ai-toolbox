@@ -1,0 +1,4 @@
+interface:
+  display_name: "Design System Setup"
+  short_description: "End-to-end design system setup with DESIGN.md and Storybook"
+  default_prompt: "Use $design-system-setup to set up the design system for this project."

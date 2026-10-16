@@ -1,0 +1,10 @@
+interface:
+  display_name: "Implement Task"
+  short_description: "Implement a task end-to-end from an SDD and ticket"
+  default_prompt: "Use $implement-task to implement this task."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "ai__toolbox"
+      description: "AI Toolbox NKN and analytics MCP server"

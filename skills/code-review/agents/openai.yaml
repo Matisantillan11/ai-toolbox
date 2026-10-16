@@ -1,0 +1,4 @@
+interface:
+  display_name: "Code Review"
+  short_description: "Two-phase code review for spec compliance and SOLID"
+  default_prompt: "Use $code-review to review my current changes before committing."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Design Expert"
+  short_description: "Scan a project and write canonical DESIGN.md"
+  default_prompt: "Use $design-expert to document the design system for this project."

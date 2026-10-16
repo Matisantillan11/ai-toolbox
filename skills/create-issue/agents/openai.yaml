@@ -1,0 +1,10 @@
+interface:
+  display_name: "Create Issue"
+  short_description: "Triage and create ClickUp and GitHub issues"
+  default_prompt: "Use $create-issue to create a ticket for this bug."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "ai__toolbox"
+      description: "AI Toolbox NKN and analytics MCP server"

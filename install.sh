@@ -11,6 +11,7 @@ PROJECT_ROOT="$PWD"
 TARGETS=()
 OPEN_CODE_ARGS=()
 FORCE_CLEAN=0
+CODEX_PLUGIN_MODE=0
 INSTALL_SUCCESSES=()
 INSTALL_FAILURES=()
 CHECKBOX_OPTIONS=(claude antigravity opencode codex)
@@ -24,6 +25,7 @@ Usage: install.sh [options]
 Options:
   --targets <list>       Comma-separated targets: claude,antigravity,opencode,codex,all
   --global-opencode      Install OpenCode assets into ~/.config/opencode
+  --codex-plugin         Install Codex as a native plugin (default: legacy per-project mode)
   --force-clean          Remove existing AI Toolbox client assets before reinstalling
   --help                 Show this help message
 
@@ -34,6 +36,7 @@ Examples:
   bash install.sh --targets codex
   bash install.sh --targets opencode --force-clean
   bash install.sh --targets all --global-opencode
+  bash install.sh --targets codex --codex-plugin
 
 Interactive mode:
   Use arrow keys and space to select one or more CLIs, then press enter.
@@ -330,20 +333,31 @@ cleanup_opencode_assets() {
 }
 
 cleanup_codex_assets() {
-    log_step "Cleaning Codex assets in $PROJECT_ROOT..."
+    if [ "$CODEX_PLUGIN_MODE" -eq 1 ]; then
+        log_step "Cleaning Codex plugin assets..."
+        local marketplace_dir="$INSTALL_ROOT/codex-marketplace"
+        remove_path_if_exists "$marketplace_dir"
 
-    local skill_path skill_name agent_path agent_name
-    for skill_path in "$CHECKOUT_DIR"/skills/*; do
-        [ -d "$skill_path" ] || continue
-        skill_name=$(basename "$skill_path")
-        remove_path_if_exists "$PROJECT_ROOT/.agents/skills/$skill_name"
-    done
+        if command -v codex >/dev/null 2>&1; then
+            codex plugin remove ai-toolbox@ai-toolbox >/dev/null 2>&1 || true
+            codex plugin marketplace remove ai-toolbox >/dev/null 2>&1 || true
+        fi
+    else
+        log_step "Cleaning Codex assets in $PROJECT_ROOT..."
 
-    for agent_path in "$CHECKOUT_DIR"/agents/*.md; do
-        [ -f "$agent_path" ] || continue
-        agent_name=$(basename "$agent_path" .md)
-        remove_file_if_exists "$PROJECT_ROOT/.codex/agents/$agent_name.toml"
-    done
+        local skill_path skill_name agent_path agent_name
+        for skill_path in "$CHECKOUT_DIR"/skills/*; do
+            [ -d "$skill_path" ] || continue
+            skill_name=$(basename "$skill_path")
+            remove_path_if_exists "$PROJECT_ROOT/.agents/skills/$skill_name"
+        done
+
+        for agent_path in "$CHECKOUT_DIR"/agents/*.md; do
+            [ -f "$agent_path" ] || continue
+            agent_name=$(basename "$agent_path" .md)
+            remove_file_if_exists "$PROJECT_ROOT/.codex/agents/$agent_name.toml"
+        done
+    fi
 }
 
 cleanup_antigravity_assets() {
@@ -500,7 +514,11 @@ install_opencode() {
 
 install_codex() {
     echo
-    log_step "Installing Codex assets..."
+    if [ "$CODEX_PLUGIN_MODE" -eq 1 ]; then
+        log_step "Installing Codex plugin (native mode)..."
+    else
+        log_step "Installing Codex assets (legacy mode)..."
+    fi
     require_command python3
     ensure_repo_checkout
 
@@ -510,7 +528,11 @@ install_codex() {
         exit 1
     fi
 
-    python3 "$install_script"
+    if [ "$CODEX_PLUGIN_MODE" -eq 1 ]; then
+        python3 "$install_script" --plugin
+    else
+        python3 "$install_script"
+    fi
     log_success "Codex install complete."
 }
 
@@ -558,6 +580,10 @@ while [ $# -gt 0 ]; do
             ;;
         --global-opencode)
             OPEN_CODE_ARGS+=(--global)
+            shift
+            ;;
+        --codex-plugin)
+            CODEX_PLUGIN_MODE=1
             shift
             ;;
         --force-clean)

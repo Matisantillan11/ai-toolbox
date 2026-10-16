@@ -1,0 +1,10 @@
+interface:
+  display_name: "Planning Features"
+  short_description: "End-to-end feature planning from discovery to subtasks"
+  default_prompt: "Use $planning-features to plan this new feature from scratch."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "ai__toolbox"
+      description: "AI Toolbox NKN and analytics MCP server"

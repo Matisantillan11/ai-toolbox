@@ -1,0 +1,15 @@
+{
+  "description": "AI Toolbox lifecycle hooks for Codex CLI.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'MANDATORY ACTION: Always use the orchestrator-agent. Call mcp__ai__toolbox__nkn_recall at the start of relevant tasks. As soon as the orchestrator classifies the request, write its intent on a line of its own in the form [ai-toolbox] intent=<intent> using the orchestrator intent name; token usage is tagged from that line, so never write it for a guess. For significant decisions, automatically decide whether to call mcp__ai__toolbox__nkn_learn.'"
+          }
+        ]
+      }
+    ]
+  }
+}
