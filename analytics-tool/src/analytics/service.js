@@ -1,34 +1,22 @@
-import { randomUUID } from "node:crypto";
 import { getDefaultProjectName } from "./config.js";
 import {
   createDatabaseConnection,
   initializeDatabase,
   insertTrace,
-  upsertExecution,
+  reconcileIntents,
+  upsertTokenUsage,
 } from "./db.js";
 import { logError, logInfo } from "./logger.js";
 
 /**
- * Creates the reusable analytics trace service used by both the MCP server and the local CLI.
+ * Creates the reusable analytics service used by the CLI, the token collector, and the OpenCode plugin.
  *
  * @param {{dbPath?: string}} [options={}] Service configuration.
- * @returns {{close: () => void, init: () => {ok: boolean}, trace: Function}} Analytics service API.
+ * @returns {{close: () => void, init: () => {ok: boolean}, recordUsage: Function, trace: Function}} Analytics service API.
  */
 export function createAnalyticsTraceService({ dbPath } = {}) {
   const sqlite = createDatabaseConnection(dbPath);
   initializeDatabase(sqlite);
-
-  function isExecutionPayload(input) {
-    return Boolean(
-      input.runId ||
-        input.callerAgent ||
-        input.invokedName ||
-        input.invocationType ||
-        input.actionClassification ||
-        typeof input.callCount === "number" ||
-        typeof input.tokensSpent === "number"
-    );
-  }
 
   function close() {
     sqlite.close();
@@ -43,7 +31,7 @@ export function createAnalyticsTraceService({ dbPath } = {}) {
   /**
    * Persists a tracked analytics trace.
    *
-   * @param {{project?: string, area?: string, trace?: string, details?: string, status?: string, priority?: string, confirmedByUser?: boolean, runId?: string, callerAgent?: string, invokedName?: string, invocationType?: string, actionClassification?: string, callCount?: number, tokensSpent?: number}} input Trace payload.
+   * @param {{project?: string, area?: string, trace?: string, details?: string, status?: string, priority?: string, confirmedByUser?: boolean}} input Trace payload.
    * @returns {{ok: boolean, record?: object, error?: string}} Trace result.
    */
   function trace({
@@ -54,26 +42,8 @@ export function createAnalyticsTraceService({ dbPath } = {}) {
     status = "open",
     priority = "medium",
     confirmedByUser = true,
-    runId,
-    callerAgent,
-    invokedName,
-    invocationType,
-    actionClassification,
-    callCount,
-    tokensSpent,
   }) {
-    const executionPayload = {
-      runId,
-      callerAgent,
-      invokedName,
-      invocationType,
-      actionClassification,
-      callCount,
-      tokensSpent,
-    };
-    const shouldTrackExecution = isExecutionPayload(executionPayload);
-
-    if (!trace && !shouldTrackExecution) {
+    if (!trace) {
       return {
         ok: false,
         error: "A trace is required.",
@@ -85,56 +55,6 @@ export function createAnalyticsTraceService({ dbPath } = {}) {
     const timestamp = new Date().toISOString();
 
     try {
-      if (shouldTrackExecution) {
-        if (!callerAgent || !invokedName) {
-          return {
-            ok: false,
-            error: "Execution traces require both callerAgent and invokedName.",
-          };
-        }
-
-        const executionRunId = runId ?? randomUUID();
-
-        const id = upsertExecution(sqlite, {
-          runId: executionRunId,
-          project,
-          callerAgent,
-          invokedName,
-          invocationType: invocationType ?? "agent",
-          actionClassification: actionClassification ?? "research",
-          callCount: callCount ?? 1,
-          tokensSpent: tokensSpent ?? 0,
-          createdAt: timestamp,
-        });
-
-        logInfo("analytics.execution", {
-          project,
-          callerAgent,
-          invokedName,
-          invocationType: invocationType ?? "agent",
-          actionClassification: actionClassification ?? "research",
-          callCount: callCount ?? 1,
-          tokensSpent: tokensSpent ?? 0,
-          upserted: 1,
-        });
-
-        return {
-          ok: true,
-          record: {
-            id,
-            runId: executionRunId,
-            project,
-            callerAgent,
-            invokedName,
-            invocationType: invocationType ?? "agent",
-            actionClassification: actionClassification ?? "research",
-            callCount: callCount ?? 1,
-            tokensSpent: tokensSpent ?? 0,
-            timestamp,
-          },
-        };
-      }
-
       const id = insertTrace(sqlite, {
         project,
         area,
@@ -169,9 +89,43 @@ export function createAnalyticsTraceService({ dbPath } = {}) {
     }
   }
 
+  /**
+   * Stores the usage of every turn and agent run collected for one session, then
+   * spreads orchestrator intents across them, all in one transaction.
+   *
+   * @param {string} sessionId Session that was collected (for logging; records carry their own).
+   * @param {Array<import("./db.js").TokenUsageRecord>} records Usage records.
+   * @returns {{ok: boolean, stored?: number, error?: string}} Result.
+   */
+  function recordUsage(sessionId, records) {
+    try {
+      sqlite.exec("BEGIN IMMEDIATE");
+      for (const record of records) {
+        upsertTokenUsage(sqlite, record);
+      }
+      for (const id of new Set(records.map((record) => record.sessionId))) {
+        reconcileIntents(sqlite, id);
+      }
+      sqlite.exec("COMMIT");
+      return { ok: true, stored: records.length };
+    } catch (error) {
+      try {
+        sqlite.exec("ROLLBACK");
+      } catch {
+        // Nothing was opened.
+      }
+      logError("analytics.usage_failed", {
+        sessionId,
+        error: error instanceof Error ? error.message : "unknown",
+      });
+      return { ok: false, error: "Failed to persist token usage." };
+    }
+  }
+
   return {
     close,
     init,
+    recordUsage,
     trace,
   };
 }

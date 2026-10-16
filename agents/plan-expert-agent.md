@@ -22,7 +22,6 @@ tools:
   - TaskUpdate
 skills:
   - plan-expert
-  - analytics-closeout
 ---
 
 # Plan Expert Agent
@@ -91,12 +90,7 @@ Every invocation from the orchestrator includes:
   Create subtasks in ClickUp (linked to parent ticket) or as a local task list.
   Store the SDD in the parent ticket as a comment.
 
-6_analytics_closeout: |
-  Invoke `analytics-closeout` immediately before returning control.
-  Set --invoked-name plan-expert-agent and --classification planning.
-  Reuse the same delegated runId when available.
-
-7_return: |
+6_return: |
   Signal completion to the Orchestrator with the structured payload below.
 ```
 

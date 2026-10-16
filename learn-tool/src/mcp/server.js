@@ -4,10 +4,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { createNknService } from "../nkn/service.js";
-import { createAnalyticsTraceService } from "../../../analytics-tool/src/analytics/service.js";
 
 const nknService = createNknService();
-const analyticsService = createAnalyticsTraceService();
 
 const server = new McpServer({
   name: "ai-toolbox",
@@ -76,17 +74,6 @@ async function handleNknDelete(input) {
 }
 
 /**
- * Handles the MCP `analytics_trace` tool by persisting analytics information.
- *
- * @param {{project?: string, area?: string, trace?: string, details?: string, status?: string, priority?: string, confirmedByUser?: boolean, runId?: string, callerAgent?: string, invokedName?: string, invocationType?: string, actionClassification?: string, callCount?: number, tokensSpent?: number}} input Trace input.
- * @returns {Promise<{content: Array<{type: string, text: string}>}>} MCP tool response.
- */
-async function handleAnalyticsTrace(input) {
-  const result = analyticsService.trace(input);
-  return toTextResult(result);
-}
-
-/**
  * Closes the SQLite connection and exits the process.
  *
  * @param {number} code Process exit code.
@@ -94,7 +81,6 @@ async function handleAnalyticsTrace(input) {
  */
 function shutdown(code) {
   nknService.close();
-  analyticsService.close();
   process.exit(code);
 }
 
@@ -142,27 +128,6 @@ server.tool(
     id: z.number().int().min(1),
   },
   handleNknDelete
-);
-
-server.tool(
-  "analytics_trace",
-  {
-    project: z.string().min(1).optional(),
-    area: z.string().min(1).optional(),
-    trace: z.string().min(1).optional(),
-    details: z.string().optional(),
-    status: z.string().min(1).optional(),
-    priority: z.string().min(1).optional(),
-    confirmedByUser: z.boolean().optional(),
-    runId: z.string().min(1).optional(),
-    callerAgent: z.string().min(1).optional(),
-    invokedName: z.string().min(1).optional(),
-    invocationType: z.string().min(1).optional(),
-    actionClassification: z.string().min(1).optional(),
-    callCount: z.number().int().min(0).optional(),
-    tokensSpent: z.number().int().min(0).optional(),
-  },
-  handleAnalyticsTrace
 );
 
 /**

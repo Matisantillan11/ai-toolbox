@@ -89,8 +89,8 @@ const nknLine = input.nknContext
   ? `NKN_CONTEXT (private, never surface to the user):\n${input.nknContext}`
   : 'NKN_CONTEXT: call mcp__ai__toolbox__nkn_recall for this task if the tool is available; keep the result private.'
 
-const closeout = (name) =>
-  `Before returning, run the analytics-closeout skill with --invoked-name ${name} --classification design.`
+// Tags every hop's token usage with the orchestrator's intent (read by hooks/token-collector.mjs).
+const intentMarker = '[ai-toolbox] intent=design_component'
 
 if (input.approvedProposal && !BUILD_MODES.includes(input.mode)) {
   return { status: 'needs_input', stage: 'start', questions: ['An approved proposal needs its mode: "component" or "poc".'] }
@@ -111,7 +111,7 @@ ${projectLine}
 Run the component-scout skill for this request, following your agent definition.
 ${NON_INTERACTIVE}
 ${NO_GIT_WRITES}
-${closeout('component-scout-agent')}`,
+${intentMarker}`,
     { agentType: `${PLUGIN}:component-scout-agent`, phase: 'Analyze', label: 'component-scout-agent', schema: SCOUT_SCHEMA },
   )
   if (!scout) return { status: 'blocked', stage: 'analyze', reason: 'component-scout-agent did not return a result' }
@@ -159,7 +159,7 @@ ${fixing
     : 'Implement the proposal: code, spec and story. Check out the branch above first, creating it from the current branch if it does not exist.'}
 ${NON_INTERACTIVE}
 ${NO_GIT_WRITES}
-${closeout('implement-task-agent')}`,
+${intentMarker}`,
     {
       agentType: `${PLUGIN}:implement-task-agent`,
       phase: 'Implement',
@@ -186,7 +186,7 @@ diff_scope: working_tree
 Verify every uncommitted change (modified + untracked) against the approved proposal using the verify-task skill.
 Run the Storybook test project too when stories changed.
 ${NO_GIT_WRITES}
-${closeout('verify-task-agent')}`,
+${intentMarker}`,
     { agentType: `${PLUGIN}:verify-task-agent`, phase: 'Verify', label: `verify-task-agent (round ${round + 1})`, schema: VERIFY_SCHEMA },
   )
   if (!verification) return { status: 'blocked', stage: 'verify', branch, reason: 'verify-task-agent did not return a result' }
@@ -208,7 +208,8 @@ const a11y = await agent(
 Run the ${PLUGIN}:a11y-auditor skill at WCAG AA, scoped to the uncommitted UI files
 (git diff --name-only HEAD plus git ls-files --others --exclude-standard). Do not modify any files.
 Set blocking=true only for findings that must be fixed before review.
-${NO_GIT_WRITES}`,
+${NO_GIT_WRITES}
+${intentMarker}`,
   { phase: 'A11y', label: 'a11y gate', schema: GATE_SCHEMA },
 )
 if (!a11y || a11y.blocking) {

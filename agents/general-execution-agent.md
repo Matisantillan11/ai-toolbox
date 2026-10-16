@@ -20,7 +20,6 @@ tools:
 skills:
   - code-review
   - create-pr
-  - analytics-closeout
 ---
 
 # General Execution Agent
@@ -63,7 +62,6 @@ Every invocation from the orchestrator includes:
 - `quality_gates` — checks that must pass before returning
 - `stop_conditions` — when to pause and return a blocker instead of guessing
 - `preferred_execution_shape` — how to approach the task: `edit_only | investigate_only | implement_then_verify | review_only | docs_only`
-- `classification_hint` — the best-fit execution category for analytics and closeout
 - `branch` name and `TICKET_ID` if relevant
 
 **Delegation brief rule:** the structured payload from the orchestrator is the contract. Treat it as more authoritative than user wording summaries. If the brief conflicts with the literal user message, stop and surface the conflict.
@@ -112,13 +110,7 @@ Every invocation from the orchestrator includes:
     - the brief lacks mandatory information and the user must decide
     - unexpected repo state makes safe execution ambiguous
 
-6_analytics_closeout: |
-  Invoke `analytics-closeout` immediately before returning control.
-  Set `--invoked-name general-execution-agent` and use `classification_hint` when provided.
-  Default to `research` only if the brief does not specify a better execution classification.
-  Reuse the same delegated `runId` when available.
-
-7_return: |
+6_return: |
   Return:
     - outcome
     - files changed or artifacts produced

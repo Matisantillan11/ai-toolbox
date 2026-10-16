@@ -6,28 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'MANDATORY ACTION: Always use the orchestrator-agent. If the user ran /ai-toolbox:deliver-task or /ai-toolbox:bug-fix, or asked to run the task as a workflow, launch the matching ai-toolbox workflow with the Workflow tool from the main session (subagents cannot launch workflows). Call mcp__ai__toolbox__nkn_recall at the start of relevant tasks. Capture execution metadata early, but persist or finalize execution analytics at the end of the interaction whenever possible so tokensSpent can use the best available final estimate. Reuse the same runId if an earlier placeholder execution was stored. For significant decisions, automatically decide whether to call mcp__ai__toolbox__nkn_learn. At the end of each user interaction, also decide whether to call mcp__ai__toolbox__analytics_trace for analytics information that should be stored. Requests to create or extend components, build POCs from existing components, or find reusable components (design_component) run the ai-toolbox design-system workflow by default (/ai-toolbox:design-system); it never commits, pushes, or opens a PR.'"
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "mcp__ai__toolbox__analytics_trace",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo 'MANDATORY ACTION: The analytics_trace tool just ran. Ensure the payload included callerAgent, invokedName, invocationType, actionClassification, callCount, and tokensSpent whenever this trace is auditing an execution.'"
-          }
-        ]
-      }
-    ],
-    "SubagentStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo 'MANDATORY ACTION: A subagent started. Capture a stable runId and the execution metadata for this delegated run, but avoid persisting placeholder tokensSpent=0 unless you cannot finalize the record later.'"
+            "command": "echo 'MANDATORY ACTION: Always use the orchestrator-agent. If the user ran /ai-toolbox:deliver-task or /ai-toolbox:bug-fix, or asked to run the task as a workflow, launch the matching ai-toolbox workflow with the Workflow tool from the main session (subagents cannot launch workflows). Call mcp__ai__toolbox__nkn_recall at the start of relevant tasks. As soon as the orchestrator classifies the request, write its intent on a line of its own in the form [ai-toolbox] intent=<intent> using the orchestrator intent name; token usage is tagged from that line, so never write it for a guess. For significant decisions, automatically decide whether to call mcp__ai__toolbox__nkn_learn. Requests to create or extend components, build POCs from existing components, or find reusable components (design_component) run the ai-toolbox design-system workflow by default (/ai-toolbox:design-system); it never commits, pushes, or opens a PR.'"
           }
         ]
       }
@@ -37,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'MANDATORY ACTION: A subagent finished. Finalize the delegated execution analytics now when possible, reusing the same runId so the record can be enriched with the best available token estimate before final delivery.'"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/token-collector.mjs\""
           }
         ]
       }
@@ -47,7 +26,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'MANDATORY ACTION: Before stopping, ensure orchestrator and delegated execution analytics were finalized. If exact tokens are unavailable in Claude hooks, do not invent them; persist execution metadata with tokensSpent=0 and explicitly note that a transcript-based or SDK-based collector is still missing.'"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/token-collector.mjs\""
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/token-collector.mjs\""
           }
         ]
       }

@@ -77,17 +77,6 @@ def rewrite_skill_file(skill_dir: Path) -> None:
     if not description:
         raise ValueError(f"Skill {name} is missing a description in {skill_file}")
 
-    analytics_block = "\n".join(
-        [
-            "AI Toolbox analytics requirement:",
-            f"- On every invocation of this skill, call `mcp__ai__toolbox__analytics_trace` exactly once to record that `{name}` ran.",
-            "- Use a dedicated record for this skill only; do not combine multiple skills into one trace.",
-            f"- Set `trace` to `skill:{name}` and include the user goal or passed arguments in `details` when available.",
-            "- Use `area` `skill_invocation`, `status` `completed` unless the skill fails, and `priority` `low` unless the skill is specifically analytics-related.",
-            "",
-        ]
-    )
-
     skill_file.write_text(
         "\n".join(
             [
@@ -96,7 +85,6 @@ def rewrite_skill_file(skill_dir: Path) -> None:
                 f"description: {description}",
                 "---",
                 "",
-                analytics_block,
             ]
         )
         + body,
@@ -128,6 +116,8 @@ def copy_plugins(source_dir: Path, target_plugins_dir: Path) -> None:
 
     print("\n🧩 Installing OpenCode plugins...")
     for plugin_path in sorted(plugins_dir.glob("*.mjs")):
+        if plugin_path.name.endswith(".test.mjs"):
+            continue
         content = plugin_path.read_text(encoding="utf-8")
         content = content.replace("__AI_TOOLBOX_REPO_ROOT__", str(source_dir))
 
@@ -171,16 +161,6 @@ def export_agents(source_dir: Path, target_agents_dir: Path) -> None:
         file_name = agent_path.name
         mode = "all" if file_name == "orchestrator-agent.md" else "subagent"
 
-        instrumentation_block = []
-        if file_name == "orchestrator-agent.md":
-            instrumentation_block = [
-                "AI Toolbox analytics requirement:",
-                "- Record one `mcp__ai__toolbox__analytics_trace` entry for each orchestrated interaction so the orchestrator execution is auditable.",
-                "- Record one separate `mcp__ai__toolbox__analytics_trace` entry for each skill invocation individually.",
-                "- Include the routed intent and invoked skill or agent name in the trace details.",
-                "",
-            ]
-
         exported_frontmatter = [
             "---",
             f"description: {json.dumps(description)}",
@@ -193,7 +173,6 @@ def export_agents(source_dir: Path, target_agents_dir: Path) -> None:
             "- This agent intentionally does not pin a model.",
             "- AI Toolbox skills are available separately; load only the ones that fit the task.",
             "",
-            *instrumentation_block,
         ]
 
         target_path = target_agents_dir / file_name

@@ -16,7 +16,7 @@ export const meta = {
 
 const PLUGIN = 'ai-toolbox'
 const MAX_FIX_ROUNDS = 3
-const INTENT_CLASSIFICATION = { quick_task: 'feature', implementation: 'feature', refactor: 'refactor' }
+const DELIVER_INTENTS = new Set(['quick_task', 'implementation', 'refactor'])
 
 const NON_INTERACTIVE = `You are running inside a Claude Code workflow and cannot talk to the user.
 Do NOT call AskUserQuestion. If a missing product decision or ambiguous requirement blocks you,
@@ -86,8 +86,7 @@ const PR_SCHEMA = {
 }
 
 const input = typeof args === 'string' ? { request: args } : (args || {})
-const intent = INTENT_CLASSIFICATION[input.intent] ? input.intent : 'quick_task'
-const classification = INTENT_CLASSIFICATION[intent]
+const intent = DELIVER_INTENTS.has(input.intent) ? input.intent : 'quick_task'
 const ticketLine = input.ticketId ? `TICKET_ID: ${input.ticketId}` : 'TICKET_ID: none'
 const baseLine = input.baseBranch
   ? `base_branch: ${input.baseBranch}`
@@ -101,8 +100,8 @@ if (!input.request && !input.ticketId && !input.sdd) {
   return { status: 'needs_input', stage: 'start', questions: ['What task should be delivered? Provide a description or a ClickUp ticket ID.'] }
 }
 
-const closeout = (name) =>
-  `Before returning, run the analytics-closeout skill with --invoked-name ${name} --classification ${classification}.`
+// Tags every hop's token usage with the orchestrator's intent (read by hooks/token-collector.mjs).
+const intentMarker = `[ai-toolbox] intent=${intent}`
 
 // ---- Plan -------------------------------------------------------------------
 phase('Plan')
@@ -120,7 +119,7 @@ ${nknLine}
 Produce the SDD and the ordered subtask list for this request, following your agent definition.
 Also return a short kebab-case branchSlug describing the work.
 ${NON_INTERACTIVE}
-${closeout('plan-expert-agent')}`,
+${intentMarker}`,
     { agentType: `${PLUGIN}:plan-expert-agent`, phase: 'Plan', label: 'plan-expert-agent', schema: PLAN_SCHEMA },
   )
   if (!plan) return { status: 'blocked', stage: 'plan', reason: 'plan-expert-agent did not return a result' }
@@ -166,7 +165,7 @@ ${fixing
     ? `blocking_issues from verify-task-agent (resolve ONLY these):\n${blockingIssues.map((b, i) => `${i + 1}. ${b}`).join('\n')}`
     : 'Implement the SDD. Check out the branch above first, creating it from the base branch if it does not exist.'}
 ${NON_INTERACTIVE}
-${closeout('implement-task-agent')}`,
+${intentMarker}`,
     {
       agentType: `${PLUGIN}:implement-task-agent`,
       phase: 'Implement',
@@ -186,7 +185,7 @@ ${closeout('implement-task-agent')}`,
 
 Verify the implementation on the branch above against the SDD using the verify-task skill.
 Also report whether the diff touches UI files (routes, screens, views, pages, frontend components).
-${closeout('verify-task-agent')}`,
+${intentMarker}`,
     { agentType: `${PLUGIN}:verify-task-agent`, phase: 'Verify', label: `verify-task-agent (round ${round + 1})`, schema: VERIFY_SCHEMA },
   )
   if (!verification) return { status: 'blocked', stage: 'verify', branch, reason: 'verify-task-agent did not return a result' }
@@ -218,7 +217,8 @@ const gateResults = await parallel(gates.map((g) => () =>
     `${deliveryContext}
 
 Run the ${PLUGIN}:${g.skill} skill on branch ${branch} ${g.args}, reviewing only the diff. Do not modify any files.
-Set blocking=true only for findings that must be fixed before review.`,
+Set blocking=true only for findings that must be fixed before review.
+${intentMarker}`,
     { phase: 'Deliver', label: `${g.gate} gate`, schema: GATE_SCHEMA },
   ),
 ))
@@ -236,7 +236,7 @@ change summary: ${changeSummary || 'derive it from the diff'}
 
 All quality gates passed (verify-task, ${gates.map((g) => g.gate).join(', ')}).
 Push the branch and run the ${PLUGIN}:create-pr skill with --base <base_branch>${ticketId ? ` --ticket-id ${ticketId}` : ''} --auto.
-${closeout('deliver-task')}`,
+${intentMarker}`,
   { phase: 'Deliver', label: 'create-pr', schema: PR_SCHEMA },
 )
 if (!pr || pr.status !== 'opened') {
@@ -246,7 +246,6 @@ if (!pr || pr.status !== 'opened') {
 return {
   status: 'delivered',
   intent,
-  classification,
   branch,
   commitSha,
   ticketId,

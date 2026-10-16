@@ -92,7 +92,8 @@ const nknLine = input.nknContext
   : 'NKN_CONTEXT: call mcp__ai__toolbox__nkn_recall for this bug if the tool is available; keep the result private.'
 const bugReport = `BUG_REPORT: ${input.request || '(see ticket)'}
 TICKET_ID: ${ticketId || 'none'}`
-const closeout = (name) => `Before returning, run the analytics-closeout skill with --invoked-name ${name} --classification bug.`
+// Tags every hop's token usage with the orchestrator's intent (read by hooks/token-collector.mjs).
+const intentMarker = '[ai-toolbox] intent=bug_fix'
 
 // ---- Reproduce ----------------------------------------------------------------
 phase('Reproduce')
@@ -107,7 +108,7 @@ ${projectLine}
 
 Reproduce the bug with a failing test and identify the root cause, following your agent definition.
 ${NON_INTERACTIVE}
-${closeout('bug-fix-agent')}`,
+${intentMarker}`,
   { agentType: `${PLUGIN}:bug-fix-agent`, phase: 'Reproduce', label: 'bug-fix-agent (reproduce)', schema: REPRODUCE_SCHEMA },
 )
 if (!repro) return { status: 'blocked', stage: 'reproduce', reason: 'bug-fix-agent did not return a result' }
@@ -161,7 +162,7 @@ ${fixing
     ? `blocking_issues from verify-task-agent (resolve ONLY these):\n${blockingIssues.map((b, i) => `${i + 1}. ${b}`).join('\n')}`
     : 'Apply the smallest fix for the root cause and make the reproduction test pass.'}
 ${NON_INTERACTIVE}
-${closeout('bug-fix-agent')}`,
+${intentMarker}`,
     {
       agentType: `${PLUGIN}:bug-fix-agent`,
       phase: 'Fix',
@@ -187,7 +188,7 @@ ${bugSdd}
 
 Verify the fix on the branch above against the SDD using the verify-task skill.
 Also report whether the diff touches UI files (routes, screens, views, pages, frontend components).
-${closeout('verify-task-agent')}`,
+${intentMarker}`,
     { agentType: `${PLUGIN}:verify-task-agent`, phase: 'Verify', label: `verify-task-agent (round ${round + 1})`, schema: VERIFY_SCHEMA },
   )
   if (!verification) return { status: 'blocked', stage: 'verify', branch, reason: 'verify-task-agent did not return a result' }
@@ -221,7 +222,8 @@ const gateResults = await parallel(gates.map((g) => () =>
     `${deliveryContext}
 
 Run the ${PLUGIN}:${g.skill} skill on branch ${branch} ${g.args}, reviewing only the diff. Do not modify any files.
-Set blocking=true only for findings that must be fixed before review.`,
+Set blocking=true only for findings that must be fixed before review.
+${intentMarker}`,
     { phase: 'Deliver', label: `${g.gate} gate`, schema: GATE_SCHEMA },
   ),
 ))
@@ -240,7 +242,7 @@ root cause: ${repro.rootCause || 'see diff'}
 
 All quality gates passed (verify-task, ${gates.map((g) => g.gate).join(', ')}).
 Push the branch and run the ${PLUGIN}:create-pr skill with --base <base_branch>${ticketId ? ` --ticket-id ${ticketId}` : ''} --auto.
-${closeout('bug-fix')}`,
+${intentMarker}`,
   { phase: 'Deliver', label: 'create-pr', schema: PR_SCHEMA },
 )
 if (!pr || pr.status !== 'opened') {
@@ -250,7 +252,6 @@ if (!pr || pr.status !== 'opened') {
 return {
   status: 'delivered',
   intent: 'bug_fix',
-  classification: 'bug',
   branch,
   commitSha,
   ticketId,

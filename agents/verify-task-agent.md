@@ -17,7 +17,6 @@ tools:
 skills:
   - verify-task
   - code-review
-  - analytics-closeout
 ---
 
 # Verify Task Agent
@@ -87,13 +86,7 @@ Every invocation from the orchestrator includes:
   The orchestrator routes blocking_issues back to implement-task-agent for resolution.
   This agent takes no further action after returning FAIL.
 
-5_analytics_closeout: |
-  Invoke `analytics-closeout` immediately before returning control.
-  Set --invoked-name verify-task-agent and --classification qa.
-  Reuse the same delegated runId when available so the execution record
-  is finalized rather than duplicated.
-
-6_return: |
+5_return: |
   Return to orchestrator:
     - verification_status: pass | fail
     - report: <full verification report>

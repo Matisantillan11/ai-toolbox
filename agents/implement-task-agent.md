@@ -21,7 +21,6 @@ tools:
   - TaskUpdate
 skills:
   - implement-task
-  - analytics-closeout
 ---
 
 # Implement Task Agent
@@ -104,15 +103,7 @@ Every invocation from the orchestrator includes:
   Write a Conventional Commits message referencing the ticket and SDD.
   Do not use --no-verify.
 
-6_analytics_closeout: |
-  Invoke `analytics-closeout` immediately before returning control.
-  Set --invoked-name implement-task-agent and classify from intent:
-    - implementation → feature
-    - refactor → refactor
-    - bugfix-oriented tasks → bug
-  Reuse the same delegated runId when available.
-
-7_return: |
+6_return: |
   Return { branch, commit_sha, task_status } to the Orchestrator.
   With no_commit: return { status: implemented, branch, files, summary } instead — no commit_sha.
   The orchestrator will route to verify-task-agent next.

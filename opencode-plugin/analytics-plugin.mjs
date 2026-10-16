@@ -3,15 +3,20 @@ import path from "node:path"
 import { pathToFileURL } from "node:url"
 
 import {
-  buildExecutionRecords,
-  createSessionState,
-  registerAssistantMessage,
-  registerSkillCall,
+  buildUsageRecords,
+  createUsageTracker,
+  forgetSession,
+  registerMessage,
+  registerPart,
+  registerSession,
 } from "./analytics-core.mjs"
 
 const AI_TOOLBOX_REPO_ROOT = "__AI_TOOLBOX_REPO_ROOT__"
 const ANALYTICS_SERVICE_URL = pathToFileURL(
   path.join(AI_TOOLBOX_REPO_ROOT, "analytics-tool/src/analytics/service.js"),
+)
+const ANALYTICS_INTENTS_URL = pathToFileURL(
+  path.join(AI_TOOLBOX_REPO_ROOT, "analytics-tool/src/analytics/intents.js"),
 )
 
 async function resolveProjectName(project, worktree) {
@@ -35,20 +40,10 @@ async function resolveProjectName(project, worktree) {
 
 export const AiToolboxAnalyticsPlugin = async ({ client, project, worktree }) => {
   const { createAnalyticsTraceService } = await import(ANALYTICS_SERVICE_URL.href)
+  const { findIntentMarker } = await import(ANALYTICS_INTENTS_URL.href)
   const analytics = createAnalyticsTraceService()
   const projectName = await resolveProjectName(project, worktree)
-  const sessions = new Map()
-
-  function ensureSession(sessionID) {
-    const existing = sessions.get(sessionID)
-    if (existing) {
-      return existing
-    }
-
-    const created = createSessionState()
-    sessions.set(sessionID, created)
-    return created
-  }
+  const tracker = createUsageTracker()
 
   async function logFailure(message, extra) {
     await client.app.log({
@@ -63,18 +58,25 @@ export const AiToolboxAnalyticsPlugin = async ({ client, project, worktree }) =>
 
   return {
     event: async ({ event }) => {
+      const properties = event.properties ?? {}
+
       if (event.type === "session.created" || event.type === "session.updated") {
-        ensureSession(event.properties.sessionID).parentID = event.properties.info.parentID ?? null
+        registerSession(tracker, properties.info)
         return
       }
 
-      if (event.type === "message.part.updated") {
-        registerSkillCall(ensureSession(event.properties.sessionID), event.properties.part)
+      if (event.type === "session.deleted") {
+        forgetSession(tracker, properties.info?.id ?? properties.sessionID)
         return
       }
 
       if (event.type === "message.updated") {
-        registerAssistantMessage(ensureSession(event.properties.sessionID), event.properties.info)
+        registerMessage(tracker, properties.info)
+        return
+      }
+
+      if (event.type === "message.part.updated") {
+        registerPart(tracker, properties.part, findIntentMarker)
         return
       }
 
@@ -82,36 +84,24 @@ export const AiToolboxAnalyticsPlugin = async ({ client, project, worktree }) =>
         return
       }
 
-      const session = sessions.get(event.properties.sessionID)
-      if (!session) {
+      const sessionID = properties.sessionID
+      const { sessionId, records } = buildUsageRecords(tracker, sessionID, {
+        project: projectName,
+        cwd: worktree ?? null,
+      })
+      if (records.length === 0) {
         return
       }
 
-      const records = buildExecutionRecords(event.properties.sessionID, session)
-      for (const record of records) {
-        const result = analytics.trace({
-          project: projectName,
-          trace: record.trace,
-          runId: record.runId,
-          callerAgent: record.callerAgent,
-          invokedName: record.invokedName,
-          invocationType: record.invocationType,
-          actionClassification: record.actionClassification,
-          callCount: record.callCount,
-          tokensSpent: record.tokensSpent,
-          confirmedByUser: false,
+      const result = analytics.recordUsage(sessionId, records)
+      if (!result.ok) {
+        await logFailure("Failed to persist analytics token usage", {
+          sessionID,
+          rootSessionID: sessionId,
+          runIds: records.map((record) => record.runId),
+          error: result.error,
         })
-
-        if (!result.ok) {
-          await logFailure("Failed to persist analytics execution", {
-            sessionID: event.properties.sessionID,
-            record,
-            error: result.error,
-          })
-        }
       }
-
-      sessions.set(event.properties.sessionID, createSessionState(session.parentID))
     },
   }
 }

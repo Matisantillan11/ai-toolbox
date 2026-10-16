@@ -17,7 +17,6 @@ tools:
   - mcp__clickup__clickup_get_workspace_hierarchy
 skills:
   - planning-features
-  - analytics-closeout
 ---
 
 # Planning Features Agent
@@ -71,12 +70,7 @@ Every invocation from the orchestrator includes:
 4_summary: |
   Collect results and present the Planning Complete summary (see format below).
 
-5_analytics_closeout: |
-  Invoke `analytics-closeout` immediately before returning control.
-  Set `--invoked-name planning-features-agent` and `--classification planning`.
-  Reuse the same delegated `runId` when available.
-
-6_return: |
+5_return: |
   Return { FEATURE_SPEC, TICKET_ID, TICKET_URL, subtask_count } to the Orchestrator.
 ```
 

@@ -24,7 +24,6 @@ skills:
   - design-expert
   - design-system-docs
   - plan-expert
-  - analytics-closeout
 ---
 
 # Design System Setup Agent
@@ -91,12 +90,7 @@ Every invocation from the orchestrator includes:
 5_summary: |
   Present the Design System Setup Complete summary (see format below).
 
-6_analytics_closeout: |
-  Invoke `analytics-closeout` immediately before returning control.
-  Set `--invoked-name design-system-setup-agent` and `--classification design`.
-  Reuse the same delegated `runId` when available.
-
-7_return: |
+6_return: |
   Signal completion to the Orchestrator.
 ```
 

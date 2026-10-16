@@ -25,7 +25,6 @@ Skills are reusable workflows invoked with a `/` command directly in Claude Code
 | **planning-features** | `/planning-features` | End-to-end feature planning. Runs `feature-discovery` then `plan-expert` back to back — gathers requirements, creates a ClickUp ticket, and breaks it into an execution plan. |
 | **create-pr** | `/create-pr` | Creates a GitHub PR with a fully auto-populated standardized template. Infers base branch, derives description from the diff, detects shared code impact, tags stakeholders from CODEOWNERS, and builds a concrete test plan. Designed to run without human input when called by an agent. |
 | **implement-task** | `/implement-task` | Implements a task end-to-end. Given a ClickUp ticket ID or description, reads project context, plans at the file level, writes the code, runs automated checks + `code-review`, applies fixes, commits, and opens a PR via `create-pr`. |
-| **analytics-closeout** | `/analytics-closeout` | End-of-flow execution closeout. Classifies the work that just finished, summarizes why the trace matters, and persists a final analytics execution record with the best available token estimate. |
 
 ### Agents
 
@@ -86,16 +85,17 @@ Run the workflow control-flow tests with `node --test scripts/workflows.test.mjs
 This repository ships two self-contained Node.js workspaces:
 
 - `learn-tool/` for NKN access.
-- `analytics-tool/` for tracking what the analytics app needs.
+- `analytics-tool/` for the analytics database: real token usage collected from transcripts, plus the analytics-needs CLI.
 
-`learn-tool/` now hosts the unified MCP server and `analytics-tool/` keeps the analytics service and CLI isolated. The MCP server is meant to be started as a local process through `pnpm`, not from a GitHub URL.
+`learn-tool/` hosts the unified MCP server (NKN tools only) and `analytics-tool/` keeps the analytics service, token collector, and CLI isolated. The MCP server is meant to be started as a local process through `pnpm`, not from a GitHub URL.
 
 ```bash
 cd learn-tool && pnpm install
-cd analytics-tool && pnpm install
 ```
 
-Supported clients can load the unified ai-toolbox MCP from their user config so agents can call `mcp__ai__toolbox__nkn_recall`, `mcp__ai__toolbox__nkn_learn`, `mcp__ai__toolbox__nkn_update`, `mcp__ai__toolbox__nkn_delete`, and `mcp__ai__toolbox__analytics_trace` directly. The SQLite databases stay at `~/.ai-toolbox/nkn.db` and `~/.ai-toolbox/analytics.db` by default, or you can override them with `AI_TOOLBOX_NKN_DB_PATH` and `AI_TOOLBOX_ANALYTICS_DB_PATH`.
+`analytics-tool/` has no dependencies; it needs Node.js 22.5+ for the built-in `node:sqlite`.
+
+Supported clients can load the unified ai-toolbox MCP from their user config so agents can call `mcp__ai__toolbox__nkn_recall`, `mcp__ai__toolbox__nkn_learn`, `mcp__ai__toolbox__nkn_update`, and `mcp__ai__toolbox__nkn_delete` directly. The SQLite databases stay at `~/.ai-toolbox/nkn.db` and `~/.ai-toolbox/analytics.db` by default, or you can override them with `AI_TOOLBOX_NKN_DB_PATH` and `AI_TOOLBOX_ANALYTICS_DB_PATH`.
 
 Important:
 - MCP server entries must point to a local checked-out copy of this repository.
@@ -161,13 +161,23 @@ cd learn-tool && pnpm run mcp:start
 
 Sensitive values such as decision bodies, reasoning text, and raw payloads are redacted from logs by default. The ai-toolbox guidance now treats learning as automatic, and stale memories can also be updated or deleted automatically through the MCP tools.
 
+### Token usage
+
+Token usage is measured, not reported by the model. On Claude Code, `hooks/token-collector.mjs` runs on `Stop`, `SubagentStop` and `SessionEnd`. Each run spawns a detached process that waits a few seconds for Claude Code to flush the transcript, re-reads the whole session — `<session>.jsonl` plus every `<session>/subagents/agent-*.jsonl` — and upserts one row per turn and per sub-agent run into `token_usage` in `~/.ai-toolbox/analytics.db`:
+
+| Column | Meaning |
+| --- | --- |
+| `input_tokens` | Uncached input sent to the model |
+| `cache_read_tokens` / `cache_creation_tokens` | Input read from / written to the prompt cache |
+| `output_tokens` | What the model generated (thinking included) |
+| `kind`, `agent_name`, `parent_run_id` | `turn` (`main`) or `agent` (its type), linked to the turn that spawned it |
+| `intent` | The orchestrator's classification, or `NULL` |
+
+Each API response is counted once: Claude Code writes one transcript line per content block and repeats the same `usage` on each, so lines are deduplicated by message id. The `session_token_usage` view totals what was asked (`total_input_tokens`) against what was generated (`output_tokens`) per session.
+
+`intent` only comes from the orchestrator: after classifying a request it writes `[ai-toolbox] intent=<intent>` on a line of its own, and repeats it in every delegation and workflow prompt. A turn without that line stays `NULL`; nothing is inferred. Set `AI_TOOLBOX_TOKEN_COLLECTOR=off` to disable collection; errors go to `~/.ai-toolbox/token-collector.log`. On OpenCode the `opencode-plugin/` analytics plugin writes the same table from OpenCode's message token counts.
+
 ### Using analytics-tool
-
-Install dependencies once:
-
-```bash
-cd analytics-tool && pnpm install
-```
 
 Run the local validation commands:
 
@@ -193,13 +203,7 @@ node analytics-tool/src/cli/analytics-needs.js trace \
   --priority "high"
 ```
 
-Start the analytics MCP server through the package script:
-
-```bash
-cd analytics-tool && pnpm run mcp:start
-```
-
-If you want to configure this MCP manually, first make sure this repository exists locally on disk and both workspaces have their dependencies installed. Then add the server to the relevant user config:
+If you want to configure the ai-toolbox MCP manually, first make sure this repository exists locally on disk and `learn-tool/` has its dependencies installed. Then add the server to the relevant user config:
 
 Claude / Antigravity style JSON:
 

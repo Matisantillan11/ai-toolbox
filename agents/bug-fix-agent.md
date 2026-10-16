@@ -19,8 +19,6 @@ tools:
   - mcp__clickup__clickup_get_task
   - TaskCreate
   - TaskUpdate
-skills:
-  - analytics-closeout
 ---
 
 # Bug Fix Agent
@@ -89,12 +87,7 @@ Every invocation from the orchestrator includes:
   Stage only changed files (never git add .) and commit with a Conventional Commits `fix:` message
   referencing the ticket. Do not use --no-verify.
 
-3_analytics_closeout: |
-  Invoke `analytics-closeout` immediately before returning control.
-  Set --invoked-name bug-fix-agent and --classification bug.
-  Reuse the same delegated runId when available.
-
-4_return: |
+3_return: |
   reproduce → { status: reproduced | cannot_reproduce | needs_input, test_files, failing_command, root_cause }
   fix       → { status: committed | failed | needs_input, commit_sha, summary }
 ```

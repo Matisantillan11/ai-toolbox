@@ -18,16 +18,14 @@ type FiltersBarProps = {
   filters: AnalyticsFilters
   search: string
   project: string
-  callerAgent: string
-  invokedName: string
-  invocationType: string
-  actionClassification: string
+  client: string
+  agentName: string
+  intent: string
   onSearchChange: (value: string) => void
   onProjectChange: (value: string) => void
-  onCallerAgentChange: (value: string) => void
-  onInvokedNameChange: (value: string) => void
-  onInvocationTypeChange: (value: string) => void
-  onActionClassificationChange: (value: string) => void
+  onClientChange: (value: string) => void
+  onAgentNameChange: (value: string) => void
+  onIntentChange: (value: string) => void
   onReset: () => void
 }
 
@@ -60,26 +58,24 @@ export function FiltersBar({
   filters,
   search,
   project,
-  callerAgent,
-  invokedName,
-  invocationType,
-  actionClassification,
+  client,
+  agentName,
+  intent,
   onSearchChange,
   onProjectChange,
-  onCallerAgentChange,
-  onInvokedNameChange,
-  onInvocationTypeChange,
-  onActionClassificationChange,
+  onClientChange,
+  onAgentNameChange,
+  onIntentChange,
   onReset,
 }: FiltersBarProps) {
   return (
-    <div className="grid gap-3 lg:grid-cols-[minmax(0,1.25fr)_repeat(5,minmax(0,1fr))_auto]">
+    <div className="grid gap-3 lg:grid-cols-[minmax(0,1.25fr)_repeat(4,minmax(0,1fr))_auto]">
       <div className="relative">
         <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="Search project, caller, invoked tool..."
+          placeholder="Search session, agent, model, description..."
           className="h-10 rounded-xl bg-background pl-9"
         />
       </div>
@@ -91,28 +87,22 @@ export function FiltersBar({
         onChange={onProjectChange}
       />
       <FilterSelect
-        placeholder="Caller"
-        value={callerAgent}
-        options={filters.callerAgents}
-        onChange={onCallerAgentChange}
+        placeholder="Client"
+        value={client}
+        options={filters.clients}
+        onChange={onClientChange}
       />
       <FilterSelect
-        placeholder="Used skill or agent"
-        value={invokedName}
-        options={filters.invokedNames}
-        onChange={onInvokedNameChange}
+        placeholder="Agent"
+        value={agentName}
+        options={filters.agentNames}
+        onChange={onAgentNameChange}
       />
       <FilterSelect
-        placeholder="Invocation type"
-        value={invocationType}
-        options={filters.invocationTypes}
-        onChange={onInvocationTypeChange}
-      />
-      <FilterSelect
-        placeholder="Action"
-        value={actionClassification}
-        options={filters.actionClassifications}
-        onChange={onActionClassificationChange}
+        placeholder="Intent"
+        value={intent}
+        options={filters.intents}
+        onChange={onIntentChange}
       />
 
       <Button variant="outline" className="h-10 rounded-xl" onClick={onReset}>

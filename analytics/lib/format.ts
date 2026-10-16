@@ -20,8 +20,16 @@ export function formatNumber(value: number) {
   return standardNumberFormatter.format(value)
 }
 
-export function formatDate(value: string) {
-  return dateFormatter.format(new Date(value))
+export function formatDate(value: string | null) {
+  return value ? dateFormatter.format(new Date(value)) : "—"
+}
+
+export function formatPercent(part: number, total: number) {
+  return total > 0 ? `${Math.round((part / total) * 100)}%` : "—"
+}
+
+export function shortId(value: string) {
+  return value.length > 8 ? value.slice(0, 8) : value
 }
 
 export function formatLabel(value: string) {

@@ -16,7 +16,6 @@ tools:
   - Bash
 skills:
   - component-scout
-  - analytics-closeout
 ---
 
 # Component Scout Agent
@@ -58,10 +57,6 @@ activation: Sub-agent — ONLY activated by the orchestrator-agent or the design
       proposal, report, branchSlug, questions }
   When invoked by a workflow, never call AskUserQuestion — return needs_input instead.
 
-3_analytics_closeout: |
-  Invoke `analytics-closeout` immediately before returning control.
-  Set --invoked-name component-scout-agent and --classification design.
-  Reuse the same delegated runId when available.
 ```
 
 ---

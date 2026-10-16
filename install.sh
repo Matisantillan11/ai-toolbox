@@ -423,9 +423,6 @@ configure_selected_mcp() {
     log_step "Initializing NKN database..."
     node "$CHECKOUT_DIR/learn-tool/src/cli/nkn.js" init >/dev/null
 
-    log_step "Installing analytics-tool dependencies..."
-    pnpm --dir "$CHECKOUT_DIR/analytics-tool" install --silent
-
     log_step "Initializing analytics database..."
     node "$CHECKOUT_DIR/analytics-tool/src/cli/analytics-needs.js" init >/dev/null
 

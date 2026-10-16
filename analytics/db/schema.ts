@@ -1,35 +1,75 @@
 import { sql } from "drizzle-orm"
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
+import { integer, sqliteTable, sqliteView, text } from "drizzle-orm/sqlite-core"
 
-export const actionClassifications = [
-  "feature",
-  "planning",
-  "bug",
-  "qa",
-  "design",
+// Same list and order as analytics-tool/src/analytics/intents.js.
+export const intents = [
+  "new_feature",
+  "quick_task",
+  "implementation",
   "refactor",
-  "research",
+  "bug_fix",
+  "design_system",
+  "design_component",
+  "code_review",
+  "create_pr",
+  "knowledge_management",
+  "unknown",
 ] as const
 
-export const invocationTypes = ["agent", "skill"] as const
+/** Filter value for rows the orchestrator never tagged (intent IS NULL). */
+export const UNTAGGED_INTENT = "untagged"
 
-export const analyticsExecutions = sqliteTable("analytics_executions", {
+export const usageKinds = ["turn", "agent"] as const
+
+// Mirrors the `token_usage` table created by analytics-tool/src/analytics/db.js.
+export const tokenUsage = sqliteTable("token_usage", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   runId: text("run_id").notNull().unique(),
+  kind: text("kind", { enum: usageKinds }).notNull(),
+  client: text("client").notNull().default("claude-code"),
+  sessionId: text("session_id").notNull(),
+  promptId: text("prompt_id"),
+  parentRunId: text("parent_run_id"),
   project: text("project").notNull(),
-  callerAgent: text("caller_agent").notNull(),
-  invokedName: text("invoked_name").notNull(),
-  invocationType: text("invocation_type", { enum: invocationTypes }).notNull(),
-  actionClassification: text("action_classification", {
-    enum: actionClassifications,
-  }).notNull(),
-  callCount: integer("call_count").notNull().default(1),
-  tokensSpent: integer("tokens_spent").notNull().default(0),
-  createdAt: text("created_at")
+  cwd: text("cwd"),
+  gitBranch: text("git_branch"),
+  agentName: text("agent_name").notNull(),
+  description: text("description"),
+  intent: text("intent", { enum: intents }),
+  model: text("model"),
+  models: text("models").notNull().default("[]"),
+  inputTokens: integer("input_tokens").notNull().default(0),
+  cacheReadTokens: integer("cache_read_tokens").notNull().default(0),
+  cacheCreationTokens: integer("cache_creation_tokens").notNull().default(0),
+  outputTokens: integer("output_tokens").notNull().default(0),
+  apiCalls: integer("api_calls").notNull().default(0),
+  toolCalls: integer("tool_calls").notNull().default(0),
+  startedAt: text("started_at"),
+  endedAt: text("ended_at"),
+  clientVersion: text("client_version"),
+  updatedAt: text("updated_at")
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),
 })
 
-export type AnalyticsExecution = typeof analyticsExecutions.$inferSelect
-export type ActionClassification = (typeof actionClassifications)[number]
-export type InvocationType = (typeof invocationTypes)[number]
+// Per-session totals; the view itself is created by the DDL in lib/analytics.ts.
+export const sessionTokenUsage = sqliteView("session_token_usage", {
+  sessionId: text("session_id").notNull(),
+  client: text("client").notNull(),
+  project: text("project").notNull(),
+  startedAt: text("started_at"),
+  endedAt: text("ended_at"),
+  turns: integer("turns").notNull(),
+  agentRuns: integer("agent_runs").notNull(),
+  inputTokens: integer("input_tokens").notNull(),
+  cacheReadTokens: integer("cache_read_tokens").notNull(),
+  cacheCreationTokens: integer("cache_creation_tokens").notNull(),
+  totalInputTokens: integer("total_input_tokens").notNull(),
+  outputTokens: integer("output_tokens").notNull(),
+  intents: text("intents"),
+}).existing()
+
+export type TokenUsage = typeof tokenUsage.$inferSelect
+export type SessionTokenUsage = typeof sessionTokenUsage.$inferSelect
+export type Intent = (typeof intents)[number]
+export type UsageKind = (typeof usageKinds)[number]

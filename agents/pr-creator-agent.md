@@ -19,7 +19,6 @@ skills:
   - security-auditor
   - a11y-auditor
   - create-pr
-  - analytics-closeout
 ---
 
 # PR Creator Agent
@@ -105,12 +104,7 @@ Every invocation from the orchestrator includes:
     - `--auto`
   Capture the returned `PR_URL`.
 
-7_analytics_closeout: |
-  Invoke `analytics-closeout` immediately before returning control.
-  Set `--invoked-name pr-creator-agent` and `--classification qa`.
-  Reuse the same delegated `runId` when available so any earlier placeholder execution record is finalized.
-
-8_return: |
+7_return: |
   Return { PR_URL, base branch, ui_changes_detected, checks_run } to the Orchestrator.
 ```
 

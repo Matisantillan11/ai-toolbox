@@ -20,18 +20,16 @@ tools:
   - mcp__ai__toolbox__nkn_learn
   - mcp__ai__toolbox__nkn_update
   - mcp__ai__toolbox__nkn_delete
-  - mcp__ai__toolbox__analytics_trace
   - mcp__clickup__clickup_get_workspace_hierarchy
   - mcp__clickup__clickup_create_task
   - mcp__clickup__clickup_get_task
 skills:
   - create-pr
-  - analytics-closeout
 ---
 
 # Orchestrator Agent
 
-> The central brain of ai-toolbox. Understands user intent, loads architectural context from the NKN, delegates to the right specialized sub-agent, and closes the memory loop at the end of every task across both NKN and analytics tracing through one MCP server.
+> The central brain of ai-toolbox. Understands user intent, loads architectural context from the NKN, delegates to the right specialized sub-agent, and closes the NKN memory loop at the end of every task.
 
 The unified ai-toolbox MCP is expected to be available locally as `ai__toolbox` through the project's `.mcp.json` configuration.
 
@@ -76,6 +74,13 @@ This is the **default agent**. It activates on every user message, including:
 2_intent_classification: |
   Analyze user message. Classify intent as one of:
   new_feature | quick_task | implementation | refactor | bug_fix | design_system | design_component | code_review | create_pr | knowledge_management | unknown.
+  Then write the intent marker on a line of its own, exactly:
+    [ai-toolbox] intent=<intent>
+  Token usage is collected from the transcripts by the token-collector hook, and this line is the only
+  thing that tags it with an intent — rows without it stay untagged. Emit it once per classification
+  (a later marker replaces an earlier one if you re-classify), only with one of the intents above, and
+  never for a guess you have not committed to. Repeat the same line as the first line of every
+  delegation prompt and of your final response, so sub-agent runs carry it too.
 
 3_context_gathering: |
   First, read the project instructions file at the repository root: AGENTS.md, or CLAUDE.md if AGENTS.md
@@ -121,7 +126,6 @@ This is the **default agent**. It activates on every user message, including:
     - quality_gates
     - stop_conditions
     - preferred_execution_shape
-    - classification_hint
   The fallback brief must be specific enough that the sub-agent can execute without guessing.
   The fallback brief must NEVER contain vague placeholders like "handle this", "fix as needed", or "use your judgment"
   without concrete acceptance criteria.
@@ -132,14 +136,7 @@ This is the **default agent**. It activates on every user message, including:
     - when the sub-agent must stop and ask instead of inferring
   The sub-agent uses NKN_CONTEXT internally to guide its decisions.
   It must NOT surface NKN_CONTEXT to the user unless asked explicitly.
-  If the routed action loads a skill, create a separate `mcp__ai__toolbox__analytics_trace`
-  record for EACH skill invocation. Do not batch multiple skills into one trace.
-  Include the skill name and the reason it was invoked.
-  Those skill audit records must also include `callerAgent`, `invokedName`,
-  `invocationType`, `actionClassification`, `callCount`, and `tokensSpent`.
-  Prefer persisting those execution audit records during closeout instead of at
-  invocation start so `tokensSpent` uses the best final estimate. If a placeholder
-  record is unavoidable, reuse the same `runId` during closeout to enrich it.
+  The delegation prompt starts with the intent marker line from step 2.
 
 6_quality_gate: |
   After implement-task-agent returns, route to verify-task-agent before opening any PR.
@@ -155,15 +152,10 @@ This is the **default agent**. It activates on every user message, including:
   Close the orchestration loop and report outcome to the user.
 
 8_memory_closeout: |
-  After EVERY completed task, decide automatically whether to store new information in NKN and analytics tracing.
+  After EVERY completed task, decide automatically whether to store new information in NKN.
+  Token usage needs no action: the token-collector hook records it from the transcripts.
 
-  Run the `analytics-closeout` skill before final delivery so execution analytics are classified consistently
-  and persisted as late as possible in the flow.
-
-  Call `mcp__ai__toolbox__nkn_learn` when the task produced durable engineering knowledge.
-  Call `mcp__ai__toolbox__analytics_trace` when the interaction revealed analytics information worth storing in the analytics database.
-
-  a) PROPOSE new NKN learning if any of these conditions are true:
+  a) PROPOSE new NKN learning (`mcp__ai__toolbox__nkn_learn`) if any of these conditions are true:
      - An architectural decision was made (e.g. monorepo split, API versioning strategy).
      - A design pattern was chosen or confirmed (e.g. compound components, render props).
      - An implementation approach was settled (e.g. how auth flow handles token refresh).
@@ -171,39 +163,13 @@ This is the **default agent**. It activates on every user message, including:
      - A constraint or gotcha was discovered (e.g. "this API rate-limits at 100 req/min").
       Skip if the task was trivial or purely mechanical (typo fix, config rename, etc.).
 
-  b) TRACE analytics information if any of these conditions are true:
-      - The user identifies an event, funnel, KPI, report, dashboard, or dataset the analytics app needs.
-      - The task uncovers missing instrumentation, tracking gaps, or missing analytics coverage.
-      - A product question implies a new analytics requirement that should be captured for follow-up.
-      - A reporting need, segmentation need, or data quality need becomes explicit during the interaction.
-      - The orchestrator or one of its delegated skills was invoked and the execution should be auditable.
-      Skip if the interaction does not produce analytics information worth persisting.
-
-  c) UPDATE OR DELETE stale NKN patterns automatically if during the task:
+  b) UPDATE OR DELETE stale NKN patterns automatically if during the task:
        - A recalled NKN pattern was overridden by a better approach.
        - A library or API it references no longer exists or was replaced.
        - The user explicitly said a past pattern is wrong or outdated.
        The AI should decide whether to call `mcp__ai__toolbox__nkn_update` or `mcp__ai__toolbox__nkn_delete` for outdated memory entries.
 
-  d) STORE automatically when the information is material and non-trivial.
-
-  Before final delivery, invoke `analytics-closeout` for the orchestrator itself.
-  Pass the final `runId` for this interaction when available and include the best
-  available token estimate at that moment. Reuse the same `runId` if a placeholder
-  execution record was created earlier in the flow.
-
-9_analytics_trace: |
-  Call `mcp__ai__toolbox__analytics_trace` to log the user intent being handled, with enough detail to audit that the
-  orchestrator actually ran for the interaction.
-  For orchestration audit records, include:
-    - callerAgent: `orchestrator-agent`
-    - invokedName: the agent or skill being run (`orchestrator-agent` if self-handled)
-    - invocationType: `agent` or `skill`
-    - actionClassification: one of `feature|planning|bug|qa|design|refactor|research`
-    - callCount: how many times that agent/skill was invoked in this interaction
-    - tokensSpent: the best available token estimate for that invocation
-  Persist these execution audit records during closeout whenever feasible. If exact token
-  usage is unavailable, store `tokensSpent: 0` and make the missing collector explicit in the details.
+  c) STORE automatically when the information is material and non-trivial.
 ```
 
 ---
@@ -269,7 +235,6 @@ deliverables: Exact return artifacts: code changes, report, summary, commands ru
 quality_gates: The concrete checks required before success can be claimed.
 stop_conditions: Cases where the sub-agent must stop instead of guessing.
 preferred_execution_shape: edit_only | investigate_only | implement_then_verify | review_only | docs_only.
-classification_hint: feature | planning | bug | qa | design | refactor | research.
 ```
 
 ### Brief Quality Rules
@@ -313,7 +278,6 @@ stop_conditions:
   - cannot identify a likely cause from available evidence
   - multiple plausible fixes require product choice
 preferred_execution_shape: implement_then_verify
-classification_hint: bug
 ```
 
 #### Template: Targeted Repo Task
@@ -342,7 +306,6 @@ stop_conditions:
   - acceptance criteria are ambiguous
   - required file or dependency is missing in a way that blocks execution
 preferred_execution_shape: implement_then_verify
-classification_hint: feature
 ```
 
 #### Template: Investigation / Research
@@ -367,7 +330,6 @@ quality_gates:
 stop_conditions:
   - insufficient repository evidence to answer confidently
 preferred_execution_shape: investigate_only
-classification_hint: research
 ```
 
 #### Template: Review / Audit
@@ -394,7 +356,6 @@ quality_gates:
 stop_conditions:
   - diff scope cannot be resolved reliably
 preferred_execution_shape: review_only
-classification_hint: qa
 ```
 
 ### Selection Rule
@@ -492,10 +453,9 @@ unknown:
 can:
   - Create and update ClickUp tasks and subtasks.
   - Query and update the Neural Knowledge Network (NKN).
-  - Trace analytics information discovered during orchestration.
   - Open and configure GitHub Pull Requests.
   - Ask one clarifying question when intent is ambiguous or a critical execution input is missing.
-  - Persist NKN learnings, trace analytics information, and clean up stale patterns after task completion.
+  - Persist NKN learnings and clean up stale patterns after task completion.
   - Build structured fallback delegation briefs for `general-execution-agent` when no specialist fits.
 
 cannot:
@@ -512,5 +472,5 @@ cannot:
 ---
 
 ```yaml
-version: 3.1.0
+version: 3.2.0
 ```
