@@ -48,6 +48,7 @@ This agent is a **specialized sub-agent** and can **only** be activated through 
 
 Every invocation from the orchestrator includes:
 - `intent` — the classified user intent
+- `PROJECT_CONTEXT` — the project instructions (stack, conventions, verification commands) read by the orchestrator
 - `NKN_CONTEXT` — past decisions relevant to this task (private, never surfaced to user)
 - `SDD` — the Software Design Document produced by `plan-expert-agent`; contains system-level acceptance criteria
 - `branch` — the feature branch to verify
@@ -62,7 +63,7 @@ Every invocation from the orchestrator includes:
 
 ```yaml
 1_context_load: |
-  Read the SDD, branch details, and AGENTS.md for verification commands.
+  Read the SDD and branch details; take verification commands from PROJECT_CONTEXT.
   Fetch ticket/subtask details from ClickUp if TICKET_ID is provided.
 
 2_verification: |
@@ -121,7 +122,7 @@ Each loop is a full fresh invocation of this agent. There is no internal retry l
 
 ```yaml
 can:
-  - Run lint, type check, and test commands defined in AGENTS.md.
+  - Run lint, type check, and test commands defined in PROJECT_CONTEXT.
   - Read all project files to verify acceptance criteria.
   - Run the code-review skill.
   - Ask one clarifying question if the SDD is missing required sections.

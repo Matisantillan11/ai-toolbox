@@ -41,18 +41,18 @@ If an invalid value is given, inform the user and provide the list of available 
 
 ## Step 2 — Environment Detection
 
-Read `AGENTS.md` at the project root to determine the environment. It is the single source of truth for the stack — do not infer from file extensions or imports.
+Determine the environment from the project instructions: use `PROJECT_CONTEXT` if the caller passed it; otherwise read `AGENTS.md` at the project root, or `CLAUDE.md` if `AGENTS.md` does not exist. They are the single source of truth for the stack — do not infer from file extensions or imports.
 
-**If `AGENTS.md` exists:**
-- Read the `## Stack` section.
+**If the project instructions identify the stack:**
+- Read the `## Stack` section (or the equivalent stack notes).
 - Classify as **Web** if the framework is any of: HTML, React, Next.js, Remix, Astro, Nuxt, Svelte, Angular, or any browser-targeting stack.
 - Classify as **Mobile** if the framework is any of: React Native, Expo, Swift, SwiftUI, Kotlin, Jetpack Compose, or Flutter.
 - If the stack targets both (e.g., Expo Web), classify as **Web** and note the dual-target nature in the report.
 
-**If `AGENTS.md` does not exist:**
+**If there are no project instructions, or they do not identify the stack:**
 Stop and inform the user:
 
-> `AGENTS.md` was not found. Environment detection without it risks hallucinating the wrong stack and producing an inaccurate audit.
+> The project instructions do not identify the stack. Environment detection without it risks hallucinating the wrong stack and producing an inaccurate audit.
 > Run `/init-project` first to scan the project and generate `AGENTS.md`, then re-run `/a11y-auditor`.
 
 Once classified, **execute only the corresponding section below**. Skip the other entirely.

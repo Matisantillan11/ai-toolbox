@@ -97,7 +97,7 @@ For each of the following areas, decide if it is relevant to this task. Only inc
 Use Grep/Glob/Read to map the affected area:
 - Locate files and modules the task will touch
 - Identify existing patterns, shared utilities, and naming conventions to follow
-- Check `AGENTS.md` and `DESIGN.md` (if present) for stack rules and design constraints
+- Check the project instructions (use `PROJECT_CONTEXT` if the caller passed it; otherwise read `AGENTS.md` at the project root, or `CLAUDE.md` if `AGENTS.md` does not exist) and `DESIGN.md` (if present) for stack rules and design constraints
 
 This codebase reading is the foundation for both the SDD and the subtask breakdown.
 

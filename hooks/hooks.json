@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'MANDATORY ACTION: Always use the orchestrator-agent. Call mcp__ai__toolbox__nkn_recall at the start of relevant tasks. Capture execution metadata early, but persist or finalize execution analytics at the end of the interaction whenever possible so tokensSpent can use the best available final estimate. Reuse the same runId if an earlier placeholder execution was stored. For significant decisions, automatically decide whether to call mcp__ai__toolbox__nkn_learn. At the end of each user interaction, also decide whether to call mcp__ai__toolbox__analytics_trace for analytics information that should be stored.'"
+            "command": "echo 'MANDATORY ACTION: Always use the orchestrator-agent. If the user ran /ai-toolbox:deliver-task or /ai-toolbox:bug-fix, or asked to run the task as a workflow, launch the matching ai-toolbox workflow with the Workflow tool from the main session (subagents cannot launch workflows). Call mcp__ai__toolbox__nkn_recall at the start of relevant tasks. Capture execution metadata early, but persist or finalize execution analytics at the end of the interaction whenever possible so tokensSpent can use the best available final estimate. Reuse the same runId if an earlier placeholder execution was stored. For significant decisions, automatically decide whether to call mcp__ai__toolbox__nkn_learn. At the end of each user interaction, also decide whether to call mcp__ai__toolbox__analytics_trace for analytics information that should be stored.'"
           }
         ]
       }

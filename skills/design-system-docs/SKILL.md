@@ -14,10 +14,10 @@ effort: medium
 
 ## Step 1 — Load project context
 
-Check whether `AGENTS.md` and `DESIGN.md` exist at the project root.
+Load the project instructions (use `PROJECT_CONTEXT` if the caller passed it; otherwise read `AGENTS.md` at the project root, or `CLAUDE.md` if `AGENTS.md` does not exist) and check whether `DESIGN.md` exists at the project root.
 
-- Read both if they exist — they provide the tech stack, styling approach, component library, and design tokens already documented.
-- If neither exists, continue. Note this in the final report (both files improve the accuracy of this audit).
+- Read `DESIGN.md` if it exists. Together with the project instructions, it provides the tech stack, styling approach, component library, and design tokens already documented.
+- If neither is available, continue. Note this in the final report (both improve the accuracy of this audit).
 
 ---
 
@@ -67,7 +67,7 @@ Read `.storybook/main.*` and `.storybook/preview.*` (or `.storybook/preview.js`/
 
 ### Framework adapter
 
-Identify the `framework` field in `main.*`. Verify it matches the project stack from `AGENTS.md`:
+Identify the `framework` field in `main.*`. Verify it matches the project stack from the project instructions:
 
 | Project | Expected adapter |
 |---------|-----------------|
@@ -118,7 +118,7 @@ Read `.storybook/preview.*` and check:
 
 ### Locate components
 
-Use Glob to find all component files in the main UI component directory (detect from `AGENTS.md` or scan for common locations: `src/components/`, `src/lib/components/`, `components/`, `lib/ui/`, etc.).
+Use Glob to find all component files in the main UI component directory (detect from the project instructions or scan for common locations: `src/components/`, `src/lib/components/`, `components/`, `lib/ui/`, etc.).
 
 Collect the component names (filename without extension, without `.stories.*`).
 
@@ -265,7 +265,7 @@ Output a complete, ordered plan. Every step must be a concrete action — no vag
 - **Existing docs:** <list MD files found and summarize what they cover>
 - **Documentation gaps:** <what components or tokens have no docs>
 - **Package manager:** <detected>
-- **Framework:** <detected from AGENTS.md or file scan>
+- **Framework:** <detected from project instructions or file scan>
 
 ---
 
@@ -416,4 +416,4 @@ After outputting the plan, summarize:
 - What documentation currently exists and its quality score (good / partial / missing) per area
 - Which phase to tackle first based on the current state
 - If `DESIGN.md` was not found: recommend running `/design-expert` first, as it produces the token reference the Storybook plan depends on
-- If `AGENTS.md` was not found: recommend running `/init-project` first so the Storybook adapter and install commands can be made fully accurate
+- If there were no project instructions: recommend running `/init-project` first so the Storybook adapter and install commands can be made fully accurate

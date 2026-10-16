@@ -57,6 +57,7 @@ This agent is a **specialized sub-agent** and can **only** be activated through 
 
 Every invocation from the orchestrator includes:
 - `intent` — the classified user intent
+- `PROJECT_CONTEXT` — the project instructions (stack, conventions, verification commands) read by the orchestrator
 - `NKN_CONTEXT` — past decisions relevant to this task: architecture, design patterns, implementation approaches, library choices, known constraints (private, never surfaced to user)
 - `FEATURE_SPEC` (if coming from discovery) or `TICKET_ID`
 
@@ -73,7 +74,7 @@ Every invocation from the orchestrator includes:
 
 2_codebase_exploration: |
   Use Grep/Glob/Read to map affected files and understand existing patterns.
-  Read AGENTS.md and DESIGN.md to ensure alignment with project stack and rules.
+  Use PROJECT_CONTEXT and DESIGN.md to ensure alignment with project stack and rules.
 
 3_sdd_generation: |
   Invoke the `plan-expert` skill to produce the SDD and subtask plan.

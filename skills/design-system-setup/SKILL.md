@@ -16,7 +16,7 @@ You are a design system orchestrator. You run three skills in sequence within th
 Run the full `design-expert` skill as defined in its SKILL.md.
 
 This means:
-- Read `AGENTS.md` and `DESIGN.md` if they exist
+- Load the project instructions (use `PROJECT_CONTEXT` if the caller passed it; otherwise read `AGENTS.md` at the project root, or `CLAUDE.md` if `AGENTS.md` does not exist) and read `DESIGN.md` if it exists
 - Run the complete file discovery (Steps 2a–2e) and deep extraction (Steps 3a–3g) — do not skip any scan step
 - Write or update `DESIGN.md` at the project root
 - Complete the Step 5 confirmation output

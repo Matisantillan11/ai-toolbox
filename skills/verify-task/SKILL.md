@@ -32,7 +32,7 @@ mcp__clickup__clickup_get_task { task_id: "<ticket-id>" }
 ```
 Parse each subtask's **Acceptance criteria** section from the 8-section template.
 
-**AGENTS.md:** Read the project root `AGENTS.md` for verification commands (lint, type check, test runner, test file pattern).
+**Project instructions:** take verification commands (lint, type check, test runner, test file pattern) from the project instructions: use `PROJECT_CONTEXT` if the caller passed it; otherwise read `AGENTS.md` at the project root, or `CLAUDE.md` if `AGENTS.md` does not exist.
 
 **Set `VERIFICATION_BRANCH`** to `--branch`.  
 **Set `BASE_BRANCH`** to `--base-branch`. If omitted, infer from remote: `main` → `master` → `develop`.
@@ -51,7 +51,7 @@ Store as `CHANGED_FILES`.
 
 ### 2a — Lint
 
-Run the lint command from `AGENTS.md` against `CHANGED_FILES`:
+Run the lint command from the project instructions against `CHANGED_FILES`:
 
 ```bash
 <lint command> <changed files>
@@ -62,7 +62,7 @@ Run the lint command from `AGENTS.md` against `CHANGED_FILES`:
 
 ### 2b — Type Check
 
-Run the type check command from `AGENTS.md`:
+Run the type check command from the project instructions:
 
 ```bash
 <type check command>
@@ -73,7 +73,7 @@ Run the type check command from `AGENTS.md`:
 
 ### 2c — Tests
 
-Identify affected test files by matching `CHANGED_FILES` against the test file naming conventions from `AGENTS.md`. Run:
+Identify affected test files by matching `CHANGED_FILES` against the test file naming conventions from the project instructions. Run:
 
 ```bash
 <test command> <affected test pattern>
@@ -82,7 +82,7 @@ Identify affected test files by matching `CHANGED_FILES` against the test file n
 - PASS: all tests pass
 - FAIL: record failing test names and output; mark 2c as FAIL and continue
 
-> If `AGENTS.md` is absent, infer commands from `package.json`, `Makefile`, `pyproject.toml`, etc., and note the inference in the report.
+> If there are no project instructions, or they do not define the commands, infer commands from `package.json`, `Makefile`, `pyproject.toml`, etc., and note the inference in the report.
 
 ---
 

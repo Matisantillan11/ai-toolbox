@@ -150,7 +150,7 @@ Stop after outputting this report. Verification and PR creation are handled down
 
 Read the following files if they exist at the project root:
 
-- `AGENTS.md` — stack, framework, conventions, dev commands
+- Project instructions — stack, framework, conventions, dev commands: use `PROJECT_CONTEXT` if the caller passed it; otherwise read `AGENTS.md` at the project root, or `CLAUDE.md` if `AGENTS.md` does not exist
 - `DESIGN.md` — design tokens, component patterns, variant system
 
 These files are the authority on how to write code for this project. If they do not exist, infer conventions from the codebase in Step 3.
@@ -253,7 +253,7 @@ Execute the plan from Step 4 in order. For each action:
 - Do not alter formatting of untouched lines
 
 **Running commands:**
-- Use the commands from `AGENTS.md` (dev commands section) as the authority
+- Use the commands from the project instructions (dev commands section) as the authority
 - If a command fails, diagnose and fix the root cause before continuing — do not skip
 
 After all files are written, do a final pass:
@@ -324,7 +324,7 @@ If the commit is rejected by a pre-commit hook, fix the issue the hook reports a
 - Never run verification commands (lint, type check, tests, code-review). Verification is handled by `verify-task-agent`.
 - Never open a PR. PR creation is handled by the orchestrator after verification passes.
 - Never modify files outside the approved implementation plan without re-confirming with the user.
-- Never disable linting, type checking, or test commands from `AGENTS.md`.
+- Never disable linting, type checking, or test commands from the project instructions.
 - Never commit secrets, credentials, `.env` files, or generated build artifacts.
 - Never use `git add .` or `git commit --no-verify`.
 - If the task turns out to be significantly larger than the SDD suggests, stop and surface it:

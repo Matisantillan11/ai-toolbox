@@ -46,11 +46,25 @@ In OpenCode, the same agents are installed as optional agents without pinning th
 | **feature-discovery-agent** | Called by `planning-features-agent` — structured requirement interviews → FEATURE_SPEC + ClickUp ticket. |
 | **plan-expert-agent** | `quick_task`, `refactor`, or after discovery — decomposes specs into 8-section subtasks. |
 | **implement-task-agent** | `implementation` intent or after planning — writes code, runs review, commits, opens PR. |
+| **bug-fix-agent** | `bug_fix` intent — reproduces the bug with a failing test, finds the root cause, and commits the smallest fix. |
 | **design-system-setup-agent** | `design_system` intent — design-expert → design-system-docs → plan-expert pipeline. |
 | **pr-creator-agent** | `create_pr` intent — runs code review, a dedicated security gate, conditional a11y audit for UI diffs, then opens the PR. |
 | **general-execution-agent** | `unknown` intent — fallback executor for tasks with no dedicated specialist, driven by a structured delegation brief from the orchestrator. |
 
 > **How to use:** Just describe what you want in natural language. The orchestrator routes automatically. Use `/` skills for direct, one-off invocations when you know exactly which step to run.
+
+### Workflows (Claude Code only)
+
+Claude Code can also run the delivery routes as [workflows](https://code.claude.com/docs/en/workflows.md): deterministic scripts that call the same agents and skills, but run independent gates in parallel and loop verification failures back automatically. Each step runs in a fresh subagent that receives only what it needs. For example, the security and a11y gates get the branch and diff, not the SDD. Workflows ship in `workflows/` and the plugin exposes them as namespaced slash commands. To open a PR for an existing branch, use the `create_pr` route or the `/create-pr` skill directly.
+
+| Workflow | Command | Replaces route | Flow |
+|---|---|---|---|
+| **bug-fix** | `/ai-toolbox:bug-fix` | `bug_fix` | bug-fix-agent reproduce → bug-fix-agent fix ⇄ verify-task-agent (up to 3 fix rounds) → security + a11y gates in parallel → create-pr |
+| **deliver-task** | `/ai-toolbox:deliver-task` | `quick_task`, `implementation`, `refactor` | plan-expert-agent → implement-task-agent ⇄ verify-task-agent (up to 3 fix rounds) → security + a11y gates in parallel → create-pr |
+
+This is a **hybrid** setup. Agents and skills stay the portable source of truth. Codex, OpenCode, and Antigravity do not support workflows, and their installers never copy `workflows/`; there the orchestrator runs the same hops sequentially. Workflow agents cannot ask questions mid-run: when a decision is missing they return `needs_input`, and the main session asks you and relaunches.
+
+Run the workflow control-flow tests with `node --test scripts/workflows.test.mjs`.
 
 ---
 
@@ -438,7 +452,11 @@ ai-toolbox/
 │   ├── feature-discovery-agent.md       # Sub-agent: requirement interviews
 │   ├── plan-expert-agent.md             # Sub-agent: technical decomposition
 │   ├── implement-task-agent.md          # Sub-agent: code + PR delivery
+│   ├── bug-fix-agent.md                 # Sub-agent: reproduce + minimal fix
 │   └── design-system-setup-agent.md     # Sub-agent: design system pipeline
+├── workflows/                           # Claude Code-only orchestration (not installed for Codex/OpenCode)
+│   ├── bug-fix.js                       # bug_fix pipeline: reproduce → fix → verify → PR
+│   └── deliver-task.js                  # quick_task / implementation / refactor pipeline
 ├── learn-tool/
 │   ├── package.json                     # Dedicated Node.js workspace for the NKN tool
 │   ├── src/

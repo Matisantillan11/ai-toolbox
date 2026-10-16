@@ -14,12 +14,12 @@ effort: medium
 
 ## Step 1 — Stack context and existing documentation
 
-### AGENTS.md
+### Project instructions
 
-Check whether `AGENTS.md` exists at the project root.
+Load the project instructions: use `PROJECT_CONTEXT` if the caller passed it; otherwise read `AGENTS.md` at the project root, or `CLAUDE.md` if `AGENTS.md` does not exist.
 
-- **If it exists:** Read the `## Stack → Styling` section to identify the styling approach (Tailwind, CSS Modules, styled-components, etc.) and any component library (shadcn/ui, MUI, Chakra UI, Radix, etc.). This informs which files to prioritize in the scan.
-- **If it does not exist:** Continue without it — detect the styling approach by scanning for config files in Step 2.
+- **If available:** Read the `## Stack → Styling` section (or the equivalent stack/styling notes) to identify the styling approach (Tailwind, CSS Modules, styled-components, etc.) and any component library (shadcn/ui, MUI, Chakra UI, Radix, etc.). This informs which files to prioritize in the scan.
+- **If not available:** Continue without them — detect the styling approach by scanning for config files in Step 2.
 
 ### DESIGN.md
 
@@ -109,7 +109,7 @@ Look for fonts via any of these mechanisms (framework-agnostic):
 - `@fontsource/*` packages in dependency files
 - `<link rel="stylesheet" href="...fonts.googleapis.com...">` or `<link rel="preconnect" ...>` in any HTML template (`index.html`, `app.html`, `_document.*`, layout files)
 - `@font-face` declarations in CSS/SCSS files
-- Framework-specific helpers: `next/font`, `nuxt-fonts`, `astro:assets` font imports — check layout/entry files for the framework detected in AGENTS.md
+- Framework-specific helpers: `next/font`, `nuxt-fonts`, `astro:assets` font imports — check layout/entry files for the framework detected in the project instructions
 
 Look for icon libraries in dependency files (any framework):
 ```
@@ -414,7 +414,7 @@ After writing `DESIGN.md`, report:
 - Which color tokens, font families, and component library were documented
 - Any sections left as "Not configured" because they were genuinely absent
 - Any ambiguities where the scan produced uncertain results (e.g., "Colors found in both tailwind.config.ts and globals.css — CSS variables take precedence per the shadcn/ui setup")
-- Suggest running `/init-project` first if `AGENTS.md` was missing and the scan had to work without stack context
+- Suggest running `/init-project` first if there were no project instructions and the scan had to work without stack context
 
 **If DESIGN.md already existed**, also report a changelog of every improvement made:
 

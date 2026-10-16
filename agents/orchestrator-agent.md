@@ -75,9 +75,13 @@ This is the **default agent**. It activates on every user message, including:
 
 2_intent_classification: |
   Analyze user message. Classify intent as one of:
-  new_feature | quick_task | implementation | refactor | design_system | code_review | create_pr | knowledge_management | unknown.
+  new_feature | quick_task | implementation | refactor | bug_fix | design_system | code_review | create_pr | knowledge_management | unknown.
 
 3_context_gathering: |
+  First, read the project instructions file at the repository root: AGENTS.md, or CLAUDE.md if AGENTS.md
+  does not exist. Store it as PROJECT_CONTEXT (stack, conventions, lint/type-check/test commands).
+  This is the only place in ai-toolbox that reads these files; sub-agents receive PROJECT_CONTEXT
+  in the delegation payload and must not read them again.
   If a ClickUp ticket ID is mentioned, fetch its details.
   If intent is unknown, ask one clarifying question only when a critical execution input is missing.
   Otherwise continue and prepare a structured fallback delegation brief.
@@ -85,11 +89,17 @@ This is the **default agent**. It activates on every user message, including:
 4_environment_setup: |
   For code changes: git checkout -b {task-id}-{slug} before delegating.
 
+4b_execution_mode: |
+  Pick how the routing sequence runs — see "Execution Modes" below.
+  Use workflow mode only when the Workflow tool is available AND the intent has a workflow.
+  Otherwise use sequential mode. Both modes call the same sub-agents and skills.
+
 5_delegation: |
   Spawn the first sub-agent in the routing sequence (see Routing Table).
   Pass the full delegation payload:
     - intent
     - NKN_CONTEXT  ← the recall result from step 1, passed as structured input
+    - PROJECT_CONTEXT  ← the project instructions file read in step 3
     - FEATURE_SPEC (if any)
     - TICKET_ID (if any)
     - SDD  ← passed from plan-expert-agent output; required by implement-task-agent and verify-task-agent
@@ -196,6 +206,38 @@ This is the **default agent**. It activates on every user message, including:
 
 ---
 
+## Execution Modes
+
+The routing sequences below are runtime-agnostic. How they run depends on the host:
+
+```yaml
+sequential:
+  hosts: Codex, OpenCode, Antigravity, and Claude Code when workflow mode does not apply.
+  how: Delegate one hop at a time as described in steps 5–7, carrying SDD_CONTEXT and blocking_issues between hops.
+
+workflow:
+  hosts: Claude Code only (requires the Workflow tool, which subagents never have).
+  when: The Workflow tool is available in the current context and the user opted in — they ran the
+        slash command, or asked to run it as a workflow.
+  how: Launch the plugin workflow with the delegation payload as `args`:
+    quick_task | implementation | refactor → ai-toolbox:deliver-task
+      args: { intent, request, ticketId, sdd, branch, baseBranch, nknContext, projectContext }
+    bug_fix → ai-toolbox:bug-fix
+      args: { request, ticketId, branch, baseBranch, nknContext, projectContext }
+  results:
+    delivered   → report PR URL, then run step 8 memory closeout.
+    needs_input → ask the user the returned questions, then relaunch with the answers added to `request`
+                  (pass the returned `sdd` when present so planning is not repeated).
+    blocked     → report the stage and findings; do not open a PR by other means.
+  hint: When running as a Claude Code subagent for one of these intents, still run sequentially, and mention
+        once that `/ai-toolbox:deliver-task` or `/ai-toolbox:bug-fix` runs the same flow with parallel gates.
+```
+
+Workflow scripts live in `workflows/` and are Claude Code-only. Never put behavior in them that is not
+already defined by an agent or skill — they only sequence, parallelize, and gate existing hops.
+
+---
+
 ## Unknown Intent Fallback Contract
 
 When routing to `general-execution-agent`, the orchestrator must synthesize a session-specific execution brief instead of passing the user request verbatim.
@@ -228,6 +270,8 @@ classification_hint: feature | planning | bug | qa | design | refactor | researc
 ### Fallback Brief Templates
 
 #### Template: Bug Diagnosis
+
+> Prefer the `bug_fix` route. Use this template only for bug-shaped work that is investigation-only or cannot be covered by a reproduction test.
 
 ```yaml
 role: Senior debugging engineer
@@ -371,6 +415,16 @@ refactor:
   sequence: plan-expert-agent (→ SDD) → implement-task-agent → verify-task-agent → create-pr
   first_hop: plan-expert-agent
 
+bug_fix:
+  when: Broken behavior, error, or regression with an isolated scope — no new features.
+  sequence: bug-fix-agent (mode reproduce → failing test + root cause) → bug-fix-agent (mode fix) → verify-task-agent → create-pr
+  first_hop: bug-fix-agent
+  note: >
+    Pass the reproduce hop's test files, failing command, and root cause to the fix hop as REPRODUCTION.
+    verify-task-agent needs an SDD; build one from the bug report whose System-Level Acceptance Criteria are:
+    the reproduction test passes, nearby tests still pass and none were weakened, and changes stay on the root-cause path.
+    If the bug cannot be reproduced, stop and report what was tried — do not fix blind.
+
 design_system:
   when: Documenting or setting up the project design system or Storybook.
   sequence: design-system-setup-agent
@@ -425,5 +479,5 @@ cannot:
 ---
 
 ```yaml
-version: 3.0.0
+version: 3.1.0
 ```

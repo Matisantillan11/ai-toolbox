@@ -27,7 +27,7 @@ You'll be prompted with a question like:
 > "Which branch should be used as the base for this review?"
 > Options: `main`, `master`, `develop`, or any other local branch detected. Select one or type a custom name.
 
-> **Tip:** Run `/init-project` first if the project has no `AGENTS.md`. The review uses it for stack-aware checks in Phase 1.
+> **Tip:** Run `/init-project` first if the project has neither `AGENTS.md` nor `CLAUDE.md`. The review uses the project instructions for stack-aware checks in Phase 1.
 
 ---
 
@@ -83,7 +83,7 @@ Catch the 80% of issues before going deeper. Run this first.
 
 ### 1.3 Stack Alignment
 
-Check the detected stack (see `AGENTS.md` if available) and verify conventions are followed:
+Check the detected stack from the project instructions (use `PROJECT_CONTEXT` if the caller passed it; otherwise read `AGENTS.md` at the project root, or `CLAUDE.md` if `AGENTS.md` does not exist) and verify conventions are followed:
 - Framework-specific patterns are used correctly (e.g., server vs. client components, lifecycle hooks, routing conventions)
 - Styling follows the project's chosen approach consistently
 - ORM/database queries follow the project's data-access layer patterns
@@ -154,7 +154,7 @@ If a signature changes, all dependent files **must** be updated in the same chan
 
 - Check for unreachable code and dead exports
 - Check for circular dependencies
-- Verify files are in the correct location per the project's structure (reference `AGENTS.md`)
+- Verify files are in the correct location per the project's structure (reference the project instructions)
 - Run the project's lint and type-check commands. Block completion if they fail.
 
 ---
@@ -181,4 +181,4 @@ Approve / Request Changes — <one-line rationale>
 
 - If errors exist: report them and ask "Should I apply the fixes?"
 - After applying fixes: re-run the relevant phase to verify resolution
-- If the codebase has no `AGENTS.md`, suggest running `/init-project` first for better stack-aware review
+- If the codebase has neither `AGENTS.md` nor `CLAUDE.md`, suggest running `/init-project` first for better stack-aware review
