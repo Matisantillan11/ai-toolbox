@@ -151,7 +151,8 @@ Stop after outputting this report. Verification and PR creation are handled down
 Read the following files if they exist at the project root:
 
 - Project instructions — stack, framework, conventions, dev commands: use `PROJECT_CONTEXT` if the caller passed it; otherwise read `AGENTS.md` at the project root, or `CLAUDE.md` if `AGENTS.md` does not exist
-- `DESIGN.md` — design tokens, component patterns, variant system
+- `DESIGN.md` — the design token contract. Read values only from its YAML front matter (`colors`, `typography`, `rounded`, `spacing`, `components`) and obey its `## Do's and Don'ts`. Never hardcode a value that has a token; if a needed value has no token, extrapolate from confirmed neighbours and leave a one-line `// extrapolated from DESIGN.md` comment.
+- UI components — if `.storybook/` exists, every new or changed UI component ships with a co-located story and spec following the `design-system-docs` skill's `references/storybook-baseline.md` §6–7 (CSF3, `AllVariants` first when there is more than one variant axis, `fn()` callbacks, `play` interaction tests).
 
 These files are the authority on how to write code for this project. If they do not exist, infer conventions from the codebase in Step 3.
 
@@ -266,7 +267,9 @@ After all files are written, do a final pass:
 
 ## Step 7 — Commit
 
-Stage only the files that are part of this task:
+**If the caller passed `no_commit: true`:** skip this step entirely — do not stage, do not commit. Run `git status --porcelain` to list every modified and untracked file, report them under **Files changed** in Step 8, and replace the **Commit** line with `**Commit:** none (no_commit — left for the user to review)`.
+
+Otherwise, stage only the files that are part of this task:
 
 ```bash
 git add <file1> <file2> ...

@@ -18,8 +18,9 @@ Skills are reusable workflows invoked with a `/` command directly in Claude Code
 | **a11y-auditor** | `/a11y-auditor` | Audits code or components for accessibility barriers against WCAG 2.2 (A, AA, AAA). Auto-detects web vs. mobile stack. |
 | **feature-discovery** | `/feature-discovery` | Acts as a functional analyst to gather all feature requirements through structured questioning. Outputs a comprehensive spec and optionally creates a ClickUp ticket. |
 | **plan-expert** | `/plan-expert` | Takes a ClickUp ticket or a free-form description and breaks it into detailed, ordered subtasks using a structured 8-section template. Creates subtasks on the ClickUp ticket or as a local task list. |
-| **design-expert** | `/design-expert` | Scans the project for all design-related information (colors, typography, spacing, component patterns, dark mode, design system) and generates or updates a `DESIGN.md` file. |
-| **design-system-docs** | `/design-system-docs` | Audits design system documentation. If Storybook is present, reviews its quality and suggests improvements. If not, produces a step-by-step plan to implement it. |
+| **design-expert** | `/design-expert` | Extracts every confirmed design decision (color tokens, typography roles, radius, spacing, elevation, components, dark mode) and writes or reconciles a canonical `DESIGN.md`: YAML token front matter + fixed-order body referencing tokens as `{group.key}`, gated by a validation checklist. |
+| **design-system-docs** | `/design-system-docs` | Audits Storybook against a fixed baseline (Storybook 10, addon-docs/a11y/vitest, Chromatic, Vitest browser project, CSF3 co-located stories with `AllVariants` + `play` tests, Foundations MDX mirroring `DESIGN.md`) and outputs a scored, file-level gap report — or an exact setup plan when Storybook is absent. |
+| **component-scout** | `/component-scout` | Reads `DESIGN.md` and the Storybook docs, inventories every UI component and POC, classifies the request as component / poc / detect, maps each need to reuse / extend / new, recommends a composition pattern when it helps, and returns a reuse report or an implementation proposal. Read-only. |
 | **design-system-setup** | `/design-system-setup` | End-to-end design system setup. Runs `design-expert` → `design-system-docs` → `plan-expert` in sequence to document the design system, audit or plan Storybook, and create all execution tasks in ClickUp or locally. |
 | **planning-features** | `/planning-features` | End-to-end feature planning. Runs `feature-discovery` then `plan-expert` back to back — gathers requirements, creates a ClickUp ticket, and breaks it into an execution plan. |
 | **create-pr** | `/create-pr` | Creates a GitHub PR with a fully auto-populated standardized template. Infers base branch, derives description from the diff, detects shared code impact, tags stakeholders from CODEOWNERS, and builds a concrete test plan. Designed to run without human input when called by an agent. |
@@ -48,6 +49,7 @@ In OpenCode, the same agents are installed as optional agents without pinning th
 | **implement-task-agent** | `implementation` intent or after planning — writes code, runs review, commits, opens PR. |
 | **bug-fix-agent** | `bug_fix` intent — reproduces the bug with a failing test, finds the root cause, and commits the smallest fix. |
 | **design-system-setup-agent** | `design_system` intent — design-expert → design-system-docs → plan-expert pipeline. |
+| **component-scout-agent** | `design_component` intent, first hop — runs `component-scout` and returns a reuse report or a proposal for approval. |
 | **pr-creator-agent** | `create_pr` intent — runs code review, a dedicated security gate, conditional a11y audit for UI diffs, then opens the PR. |
 | **general-execution-agent** | `unknown` intent — fallback executor for tasks with no dedicated specialist, driven by a structured delegation brief from the orchestrator. |
 
@@ -60,6 +62,7 @@ Claude Code can also run the delivery routes as [workflows](https://code.claude.
 | Workflow | Command | Replaces route | Flow |
 |---|---|---|---|
 | **bug-fix** | `/ai-toolbox:bug-fix` | `bug_fix` | bug-fix-agent reproduce → bug-fix-agent fix ⇄ verify-task-agent (up to 3 fix rounds) → security + a11y gates in parallel → create-pr |
+| **design-system** | `/ai-toolbox:design-system` (default for the route) | `design_component` | component-scout-agent → user approves the proposal → implement-task-agent (no commit) ⇄ verify-task-agent (working tree, up to 3 fix rounds) → a11y gate → review summary. Never commits, pushes or opens a PR. Component mode builds in the UI directory (`UI/<Name>` stories); POC mode builds in `_pocs/<name>/` (`POCs/<Name>` stories) and never enters the design system; detect mode only reports. |
 | **deliver-task** | `/ai-toolbox:deliver-task` | `quick_task`, `implementation`, `refactor` | plan-expert-agent → implement-task-agent ⇄ verify-task-agent (up to 3 fix rounds) → security + a11y gates in parallel → create-pr |
 
 This is a **hybrid** setup. Agents and skills stay the portable source of truth. Codex, OpenCode, and Antigravity do not support workflows, and their installers never copy `workflows/`; there the orchestrator runs the same hops sequentially. Workflow agents cannot ask questions mid-run: when a decision is missing they return `needs_input`, and the main session asks you and relaunches.
@@ -453,10 +456,12 @@ ai-toolbox/
 │   ├── plan-expert-agent.md             # Sub-agent: technical decomposition
 │   ├── implement-task-agent.md          # Sub-agent: code + PR delivery
 │   ├── bug-fix-agent.md                 # Sub-agent: reproduce + minimal fix
-│   └── design-system-setup-agent.md     # Sub-agent: design system pipeline
+│   ├── design-system-setup-agent.md     # Sub-agent: design system pipeline
+│   └── component-scout-agent.md         # Sub-agent: component inventory + proposal
 ├── workflows/                           # Claude Code-only orchestration (not installed for Codex/OpenCode)
 │   ├── bug-fix.js                       # bug_fix pipeline: reproduce → fix → verify → PR
-│   └── deliver-task.js                  # quick_task / implementation / refactor pipeline
+│   ├── deliver-task.js                  # quick_task / implementation / refactor pipeline
+│   └── design-system.js                 # design_component pipeline: scout → approve → build → verify (no commit)
 ├── learn-tool/
 │   ├── package.json                     # Dedicated Node.js workspace for the NKN tool
 │   ├── src/
@@ -469,6 +474,8 @@ ai-toolbox/
 │   ├── a11y-auditor/
 │   │   └── SKILL.md
 │   ├── code-review/
+│   │   └── SKILL.md
+│   ├── component-scout/
 │   │   └── SKILL.md
 │   ├── create-pr/
 │   │   └── SKILL.md

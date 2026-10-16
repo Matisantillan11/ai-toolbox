@@ -1,419 +1,216 @@
 ---
 name: design-system-docs
-description: Audit design system documentation in the current project. Detects whether documentation lives in Markdown files or Storybook. If Storybook is present, audits its quality and suggests improvements. If only Markdown (or no docs at all), produces a step-by-step plan to implement Storybook and improve existing documentation.
+description: Audit a project's design system documentation against the canonical Storybook baseline (Storybook 10, addon-docs + addon-a11y + addon-vitest + Chromatic, Vitest browser project, CSF3 co-located stories with AllVariants and play-function tests, a Foundations MDX page mirroring DESIGN.md). If Storybook exists, produces a scored, file-level gap report. If not, produces an exact setup plan that ends at the baseline.
 allowed-tools: Glob Read Grep Bash
 effort: medium
 ---
 
 # design-system-docs
 
-**Role:** UX/UI expert and UI developer with deep experience in design systems, component documentation, and Storybook.  
-**Goal:** Find all design system documentation in this project, evaluate its quality, and deliver a prioritized, actionable improvement plan — either for an existing Storybook or for adopting Storybook when it is not yet present.
+**Role:** Design systems engineer specialised in Storybook and component testing.
+**Goal:** Measure the project against one fixed target — [`references/storybook-baseline.md`](references/storybook-baseline.md) — and output either a gap report (Storybook present) or a setup plan (Storybook absent). Every finding names a file, the expected state, and the fix.
+
+Read the baseline reference before Step 3. It is the only definition of "correct" this skill uses.
 
 ---
 
-## Step 1 — Load project context
+## Non-negotiable rules
 
-Load the project instructions (use `PROJECT_CONTEXT` if the caller passed it; otherwise read `AGENTS.md` at the project root, or `CLAUDE.md` if `AGENTS.md` does not exist) and check whether `DESIGN.md` exists at the project root.
-
-- Read `DESIGN.md` if it exists. Together with the project instructions, it provides the tech stack, styling approach, component library, and design tokens already documented.
-- If neither is available, continue. Note this in the final report (both improve the accuracy of this audit).
-
----
-
-## Step 2 — Detect documentation type
-
-Run both checks in parallel. The result determines which branch to follow.
-
-### 2a — Storybook detection
-
-Check for any of the following signals:
-
-- `.storybook/` directory at the project root or in a monorepo package
-- `@storybook/` prefix in `package.json` (or equivalent dependency file) dependencies or devDependencies
-- `*.stories.*` files anywhere in the project (Glob: `**/*.stories.{js,ts,jsx,tsx,mdx,vue,svelte}`)
-- `*.story.*` files (Glob: `**/*.story.{js,ts,jsx,tsx,mdx}`)
-
-**Storybook is present** if any of the above is found.
-
-### 2b — Markdown documentation detection
-
-Search for design-related Markdown files:
-
-- `DESIGN.md`, `STYLE.md`, `UI.md` at project root
-- Any `.md` or `.mdx` files under `docs/`, `documentation/`, `design/`, `wiki/` directories
-- Component-level `README.md` files co-located with component directories
+1. **Compare, don't opine.** A finding exists only when the project differs from the baseline. No generic best-practice advice.
+2. **Every finding is file-level:** `<path>` — current → expected — fix. Findings without a path are dropped.
+3. **Read before judging.** Every story file is read in full; configs are read, not inferred from `package.json`.
+4. **Commands use the detected package manager** (`pnpm-lock.yaml` → pnpm, `bun.lock*` → bun, `yarn.lock` → yarn, `package-lock.json` → npm).
+5. **No hedging.** Severity is assigned by the table in A6, not by feel.
 
 ---
 
-## Step 3 — Branch on findings
+## Step 1 — Context
 
-### → If Storybook is present: go to **Section A** (Storybook Audit)
-### → If Storybook is absent: go to **Section B** (Implementation Plan)
+1. Load project instructions: `PROJECT_CONTEXT` if passed; otherwise `AGENTS.md`, else `CLAUDE.md`. Note framework, styling, package manager, path alias.
+2. Read `DESIGN.md` if it exists. Record whether it follows the canonical format (YAML front matter with `colors`/`typography`/`rounded`/`spacing`, body sections Overview → Do's and Don'ts). If missing or off-format, the report's first critical finding is: `Run /design-expert`.
 
-If both Storybook and Markdown docs are found, run Section A and note the Markdown docs as supplementary context in the report.
+## Step 2 — Detect
 
----
+Storybook is present if any of: `.storybook/` exists, a `storybook` or `@storybook/*` dependency exists, or `**/*.stories.{ts,tsx,js,jsx,mdx,vue,svelte}` matches.
 
----
+- Present → **Section A**.
+- Absent → **Section B**.
 
-# Section A — Storybook Audit
-
----
-
-## A1 — Configuration audit
-
-Read `.storybook/main.*` and `.storybook/preview.*` (or `.storybook/preview.js`/`.ts`). Extract:
-
-### Framework adapter
-
-Identify the `framework` field in `main.*`. Verify it matches the project stack from the project instructions:
-
-| Project | Expected adapter |
-|---------|-----------------|
-| Next.js | `@storybook/nextjs` or `@storybook/experimental-nextjs-vite` |
-| Vite + React | `@storybook/react-vite` |
-| Vite + Vue 3 | `@storybook/vue3-vite` |
-| SvelteKit | `@storybook/sveltekit` |
-| Angular | `@storybook/angular` |
-| Nuxt | `@storybook-vue3` + Nuxt module, or `@nuxtjs/storybook` |
-| Plain Vite (no framework) | `@storybook/html-vite` or `@storybook/web-components-vite` |
-
-Flag a mismatch or a deprecated/community adapter where an official one now exists.
-
-### Storybook version
-
-Read the `@storybook/core` or `storybook` version from the dependency file.
-
-- v8.x → current; check for specific deprecated APIs
-- v7.x → supported but not latest; note upgrade path
-- v6.x or below → end-of-life; flag as high priority upgrade
-
-### Addons
-
-List all addons configured in `main.*`. Compare against this reference set and flag anything missing or worth adding:
-
-| Addon | Purpose | Priority if missing |
-|-------|---------|-------------------|
-| `@storybook/addon-essentials` | Docs, Controls, Actions, Viewport, Backgrounds, Toolbars | Critical |
-| `@storybook/addon-a11y` | Automated accessibility checks per story | High |
-| `@storybook/addon-interactions` | Play-function interaction testing | High |
-| `@storybook/test` | Story-level assertions (replaces `@storybook/jest`) | High |
-| `@storybook/addon-designs` | Embed Figma designs alongside stories | Medium |
-| `storybook-dark-mode` or native `@storybook/addon-themes` | Toggle dark/light theme | Medium if project has dark mode |
-| `@chromatic-com/storybook` | Visual regression testing via Chromatic | Low (external service) |
-
-### Preview configuration
-
-Read `.storybook/preview.*` and check:
-
-- **Global decorators** — is the project's theme provider / CSS reset / font applied to all stories? If not, every story will look wrong.
-- **Backgrounds** — are project-relevant background colors configured (e.g., the app's page background, a dark surface)?
-- **Viewport presets** — are the project's breakpoints registered as named viewports?
-- **Global types / toolbar** — is a theme or locale switcher configured if the project needs it?
+Also glob design Markdown (`DESIGN.md`, `FOUNDATIONS.md`, `docs/design/**`, `stories/**/*.mdx`) — used as context in both sections.
 
 ---
 
-## A2 — Stories coverage audit
+# Section A — Audit against the baseline
 
-### Locate components
+Run every check. Record each as ✅ / ❌ with the file path.
 
-Use Glob to find all component files in the main UI component directory (detect from the project instructions or scan for common locations: `src/components/`, `src/lib/components/`, `components/`, `lib/ui/`, etc.).
+## A1 — Dependencies (`package.json`)
 
-Collect the component names (filename without extension, without `.stories.*`).
+- [ ] `storybook` major is 10 (9 → upgrade, ≤ 8 → critical upgrade).
+- [ ] Framework package matches the stack (see B1 table). `@storybook/nextjs` (webpack) on a Next.js project → recommend `@storybook/nextjs-vite`.
+- [ ] Present: `@storybook/addon-docs`, `@storybook/addon-a11y`, `@storybook/addon-vitest`.
+- [ ] Present if visual regression is wanted: `@chromatic-com/storybook` + `chromatic`; `CHROMATIC_PROJECT_TOKEN` referenced in CI.
+- [ ] `eslint-plugin-storybook` installed and enabled.
+- [ ] No deprecated package from baseline §1 table.
 
-### Locate stories
+## A2 — Scripts
 
-Glob for all `*.stories.*` and `*.story.*` files. Extract component names they correspond to.
+- [ ] `storybook`, `build-storybook`, `test:storybook` exist; `test` runs the storybook Vitest project.
+- [ ] `chromatic` exists if Chromatic is installed.
 
-### Coverage gap
+## A3 — `.storybook/main.*`
 
-List components that have **no** corresponding story file. Group by severity:
+- [ ] `stories` globs cover every co-located `*.stories.*` location and `stories/**/*.mdx`.
+- [ ] If `_pocs/` exists: `_pocs/**/*.mdx` and `_pocs/**/*.stories.@(ts|tsx)` are in `stories` (baseline §3, §10).
+- [ ] `addons` registers docs, a11y, vitest (and chromatic if installed) — and nothing deprecated.
+- [ ] `framework` is the framework package; `staticDirs` points at the public assets dir; `core.disableTelemetry: true`.
 
-- **Critical (no story at all):** Core primitives — Button, Input, Select, Checkbox, Modal/Dialog, Tooltip, Badge, Card — any component that appears in many places.
-- **Important:** Layout components, navigation, form wrappers, data display (Table, List).
-- **Nice to have:** Page-level compositions, one-off components.
+## A4 — `.storybook/preview.*`
 
----
+- [ ] Imports the same global stylesheet the app uses (tokens + fonts render identically).
+- [ ] `tags: ["autodocs"]` set globally.
+- [ ] `controls.matchers` for color/date.
+- [ ] `options.storySort.order` starts with `"Foundations"`, then component groups; `"POCs"` is last when `_pocs/` exists.
+- [ ] Global decorators only wrap providers every story needs; dark mode toggle present iff `DESIGN.md` declares dark mode.
 
-## A3 — Story quality audit
+## A5 — Testing integration
 
-Read **every** existing story file. Evaluate each against the following checklist:
+- [ ] `vitest.config.*` defines a `storybook` project using `storybookTest({ configDir })` with browser mode (Playwright, chromium, headless).
+- [ ] A separate jsdom project with a setup file importing `@testing-library/jest-dom/vitest`.
+- [ ] `vitest.shims.d.ts` references the browser provider types.
+- [ ] Running `<pm> test:storybook` (if Bash is permitted and deps are installed) passes. Record failures verbatim.
 
-### Structure
-- [ ] Default export has `title`, `component`, and (for v7+) `tags: ['autodocs']` so the component page is auto-generated
-- [ ] Stories are named exports (CSF3 format preferred over older CSF2 `Template.bind({})` pattern)
-- [ ] At least one story per meaningful visual state (default, loading, disabled, error, empty, different sizes/variants)
+## A6 — Coverage
 
-### Args and controls
-- [ ] `args` are defined on stories so Controls panel is usable
-- [ ] `argTypes` document non-obvious props (enum options, callback signatures, deprecated props)
-- [ ] No hardcoded prop values that should be args — controls should actually control the story
+1. Glob UI components (`components/ui/**/*.component.*`, or the project's equivalent from `AGENTS.md`). For two-layer components, count only the smart layer (`<name>.component.*`, not `<name>-core.component.*`).
+2. Glob `*.stories.*` and `*.spec.*` and pair them by folder.
+3. Every UI component without a co-located story **and** spec is a gap.
 
-### Interactions
-- [ ] Interactive components (forms, dropdowns, modals) have `play` functions demonstrating real usage
-- [ ] `play` functions use `@storybook/test` (`userEvent`, `expect`) — not older `@storybook/testing-library` if on v8+
+## A7 — Story quality (read every story file)
 
-### Documentation
-- [ ] Component description is present (JSDoc on the component, or `parameters.docs.description.component`)
-- [ ] Complex or non-obvious props have inline descriptions
-- [ ] Usage notes or "do / don't" guidance exists for opinionated components
+Check each file against the 11 rules in baseline §7. Record failures per file. For stories under `_pocs/`, also check baseline §10 (title, pattern description).
 
-### Design tokens
-- [ ] At least one story or MDX page renders the color palette
-- [ ] At least one story or MDX page renders the typography scale
-- [ ] Spacing, border radius, and shadow scales are documented if custom tokens exist
+## A8 — Foundations page
 
----
+- [ ] A global MDX page (`stories/foundations.mdx` or equivalent) with `<Meta title="Foundations" />` exists.
+- [ ] It renders colors (`ColorPalette`/`ColorItem` grouped Brand/Surface/Text/Semantic), typography roles, radius, elevation, Do's and Don'ts.
+- [ ] Every value matches `DESIGN.md` front matter. List each mismatch.
+- [ ] It includes the "Design system vs POCs" note when `_pocs/` exists.
 
-## A4 — MDX documentation pages
+## A8b — POC isolation (only when `_pocs/` exists)
 
-Check for MDX files inside `.storybook/` or alongside stories. Flag if missing:
+- [ ] No file outside `_pocs/` imports from it: `grep -rnE "from ['\"][^'\"]*_pocs/" --include='*.ts' --include='*.tsx' --include='*.mdx' . | grep -v "^./_pocs/" | grep -v node_modules` returns nothing.
+- [ ] Every POC story title starts with `POCs/`; no `UI/` story lives under `_pocs/`.
+- [ ] `DESIGN.md` `## Components` does not document any POC.
 
-| Page | Why it matters |
-|------|---------------|
-| Introduction / Getting Started | Orients new contributors and designers |
-| Design Tokens (colors, type, spacing) | Makes tokens browsable without reading source |
-| Component Guidelines / Do & Don't | Prevents misuse of complex components |
-| Changelog / Version history | Tracks breaking changes to the component API |
+## A9 — Severity
 
----
+| Severity   | Condition                                                                                                                                    |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| ❌ Critical | Storybook ≤ 8 · wrong/deprecated framework package · global CSS not imported · no addon-vitest/test integration · `DESIGN.md` missing/off-format · core primitive (Button, Input, Select, Dialog, Tooltip, Card, Badge) without a story · code outside `_pocs/` imports from `_pocs/` |
+| ⚠️ High     | Missing addon-a11y or addon-docs · deprecated addon present · no Foundations page or Foundations drift · interactive component without a `play` test · multi-axis component without `AllVariants` · UI component without a spec · `_pocs/` exists but is missing from story globs or storySort · POC story not titled `POCs/` |
+| 💡 Medium   | Missing JSDoc on stories · missing `docs.description.component` · callbacks not `fn()` · storySort not pinned · no Chromatic                   |
 
-## A5 — Report
-
-Output findings in this format:
+## A10 — Report
 
 ```
-## Storybook Audit Report
+## Storybook Audit
 
-**Storybook version:** X.X
-**Framework adapter:** @storybook/xxx — ✅ correct | ⚠️ mismatch | ❌ missing
-**Stories found:** X files covering Y of Z components (X% coverage)
+**Storybook:** <version> · **Framework:** <package> <✅|❌> · **Package manager:** <pm>
+**Baseline score:** <passed>/<total> checks (<%>)
+**Coverage:** <n>/<N> UI components have story + spec (<%>)
+**DESIGN.md:** <canonical ✅ | off-format ⚠️ | missing ❌>
 
----
+### ❌ Critical
+- `<path>` — <current> → <expected>. Fix: <exact change or command>
 
-### ❌ Critical issues (fix first)
-- <issue — what it breaks — how to fix>
+### ⚠️ High
+- `<path>` — …
 
-### ⚠️ Improvements (high value)
-- <issue — impact — recommendation>
+### 💡 Medium
+- `<path>` — …
 
-### 💡 Suggestions (nice to have)
-- <suggestion — rationale>
-
-### ✅ Already done well
-- <what is working and should be kept>
-
----
+### ✅ Matches baseline
+- <check groups that fully pass>
 
 ### Coverage gaps
-| Component | Priority | Recommended stories |
-|-----------|----------|-------------------|
-| Button | Critical | Default, Disabled, Loading, all variants × sizes |
-| ...       | ...      | ...                |
+| Component | Story | Spec | Required stories |
+| --------- | ----- | ---- | ---------------- |
+| Select    | ❌    | ❌   | AllVariants, Default, Disabled, Grouped, play: opens and selects (screen) |
 
----
-
-### Recommended next steps (ordered by impact)
-1. ...
-2. ...
+### Next steps (in order)
+1. <highest-severity fix>
+2. …
 ```
 
 ---
 
----
+# Section B — Setup plan to the baseline
 
-# Section B — Storybook Implementation Plan
+## B1 — Resolve the framework package
 
-*(Run this section only when Storybook is not present)*
+| Stack                      | Framework package                     |
+| -------------------------- | ------------------------------------- |
+| Next.js                    | `@storybook/nextjs-vite`              |
+| React + Vite               | `@storybook/react-vite`               |
+| Vue 3 + Vite               | `@storybook/vue3-vite`                |
+| Nuxt                       | `@storybook-vue/nuxt`                 |
+| SvelteKit                  | `@storybook/sveltekit`                |
+| Svelte + Vite              | `@storybook/svelte-vite`              |
+| Angular                    | `@storybook/angular`                  |
+| React Native (web preview) | `@storybook/react-native-web-vite`    |
+| Web components / plain     | `@storybook/web-components-vite`, `@storybook/html-vite` |
 
----
+Non-Vite frameworks (Angular, webpack builds) cannot use `addon-vitest` — substitute `@storybook/test-runner` and say so in the plan.
 
-## B1 — Assess existing documentation
+## B2 — Inventory
 
-Read all Markdown files found in Step 2b. For each file evaluate:
+- List UI components and classify: core primitives (Button, Input, Select, Checkbox, Dialog, Tooltip, Badge, Card), composites, layout/navigation.
+- Read 3 representative components: note variant axes (`cva` keys), states, controlled props, portals, required providers.
+- Note jsdom gaps the headless library will hit (cmdk → `ResizeObserver`, `scrollIntoView`; Radix Select → pointer capture).
 
-- **What is documented** — which components, tokens, or guidelines are covered
-- **What is missing** — components or tokens with no documentation
-- **Quality** — is the content descriptive enough for a developer to use the component correctly, or is it just a list of props?
+## B3 — Output the plan
 
-Also scan component files directly: read 3–5 representative components to understand how they are structured, what props they accept, and what states they support.
-
----
-
-## B2 — Detect the package manager
-
-Check for lock files at the project root:
-
-- `pnpm-lock.yaml` → `pnpm`
-- `bun.lockb` or `bun.lock` → `bun`
-- `yarn.lock` → `yarn`
-- `package-lock.json` → `npm`
-
-Use the detected package manager in all install commands in the plan below.
-
----
-
-## B3 — Produce the implementation plan
-
-Output a complete, ordered plan. Every step must be a concrete action — no vague advice.
+Every step is a concrete command or file with its final content (taken from the baseline, adapted to the detected framework, stylesheet path, alias and public dir).
 
 ```
-## Design System Documentation Plan
+## Storybook Setup Plan
 
 ### Context
-- **Existing docs:** <list MD files found and summarize what they cover>
-- **Documentation gaps:** <what components or tokens have no docs>
-- **Package manager:** <detected>
-- **Framework:** <detected from project instructions or file scan>
+- Framework: <stack> → <framework package>
+- Package manager: <pm>
+- Global stylesheet: <path>
+- DESIGN.md: <canonical | off-format | missing>
+- UI components: <n> (<core list>)
 
----
+### Phase 1 — Install
+1. `<pm-dlx> storybook@latest init` (`pnpm dlx` · `bunx` · `yarn dlx` · `npx`) — accept Docs and Test features; delete the generated example stories.
+2. `<pm-exec> storybook add @storybook/addon-a11y` (`<pm-exec>` = `pnpm exec` · `bunx` · `yarn` · `npx` — runs the locally installed Storybook, never a different version)
+3. `<pm-exec> storybook add @storybook/addon-vitest` — confirms the Vitest browser project and Playwright.
+4. `<pm> add -D @chromatic-com/storybook chromatic eslint-plugin-storybook` (Chromatic optional).
+5. Remove anything init added that is on the deprecated list.
 
-### Phase 1 — Install and configure Storybook
+### Phase 2 — Configure (write these files exactly)
+- `.storybook/main.ts` — <baseline §3 adapted>
+- `.storybook/preview.tsx` — <baseline §4 adapted: stylesheet path, providers>
+- `vitest.config.mts`, `vitest.setup.ts`, `vitest.shims.d.ts` — <baseline §5 adapted, stubs for the gaps found in B2>
+- `package.json` scripts — <baseline §2>
+- ESLint storybook config — <baseline §9>
 
-**Step 1 — Initialize Storybook**
+### Phase 3 — Foundations page
+- `stories/foundations.mdx` built from DESIGN.md per baseline §8. Prerequisite: canonical DESIGN.md (run /design-expert first if not).
 
-Run the Storybook CLI initializer (it auto-detects the framework):
+### Phase 4 — Stories + specs (one task per component, core primitives first)
+| Component | Variant axes | Required stories | play tests | Spec |
+| --------- | ------------ | ---------------- | ---------- | ---- |
+| Button    | variant × size | AllVariants, one per variant, Disabled, IconOnly, AsLink | Clickable, DisabledIsNotClickable | render + variants snapshot |
 
-\`\`\`bash
-<package-manager> dlx storybook@latest init
-\`\`\`
-
-> If the framework is not auto-detected correctly, specify it:
-> `storybook init --type <react|vue3|angular|svelte|html>`
-
-The initializer will:
-- Install `storybook` and the correct framework adapter
-- Add `@storybook/addon-essentials`
-- Create `.storybook/main.*` and `.storybook/preview.*`
-- Create example story files (delete these after confirming setup works)
-
-**Step 2 — Verify the adapter**
-
-Open `.storybook/main.*` and confirm the `framework` field matches the project:
-<insert correct adapter for this project's framework here>
-
-**Step 3 — Connect the project's theme and styles**
-
-Edit `.storybook/preview.*` to:
-- Import the global CSS / stylesheet entry point so stories render with the project's fonts and resets
-- Wrap stories in any required theme provider (e.g., a context provider, a CSS class on the root element)
-
-Example pattern (adapt to the project's actual setup):
-\`\`\`ts
-// .storybook/preview.ts
-import '../src/styles/globals.css'; // or wherever global styles live
-
-export const decorators = [
-  (Story) => /* wrap in theme provider if needed */ Story(),
-];
-\`\`\`
-
-**Step 4 — Configure backgrounds and viewports**
-
-In `.storybook/preview.*`, add the project's real background colors and breakpoints:
-
-\`\`\`ts
-export const parameters = {
-  backgrounds: {
-    default: 'light',
-    values: [
-      { name: 'light', value: '<page background color from DESIGN.md>' },
-      { name: 'dark', value: '<dark background color if applicable>' },
-    ],
-  },
-  viewport: {
-    viewports: {
-      mobile: { name: 'Mobile', styles: { width: '<sm breakpoint>', height: '812px' } },
-      tablet: { name: 'Tablet', styles: { width: '<md breakpoint>', height: '1024px' } },
-      desktop: { name: 'Desktop', styles: { width: '<lg breakpoint>', height: '900px' } },
-    },
-  },
-};
-\`\`\`
-
-**Step 5 — Install recommended addons**
-
-\`\`\`bash
-<package-manager> add -D @storybook/addon-a11y @storybook/addon-interactions @storybook/test
-\`\`\`
-
-Register them in `.storybook/main.*` addons array.
-
----
-
-### Phase 2 — Write stories (priority order)
-
-Write stories for components in this order — highest reuse and visibility first:
-
-**Priority 1 — Core primitives** (cover all variants and states)
-<list the core primitive components found in the project: Button, Input, etc.>
-
-For each, create a story file co-located with the component (`Button.stories.ts` next to `Button.*`):
-- Default story with args
-- One story per major variant (filled, outline, ghost, etc.)
-- Disabled state
-- Loading / pending state if applicable
-- Error state if applicable
-
-**Priority 2 — Composite components** (focus on states and composition)
-<list composite components found: Card, Modal, Form, Table, etc.>
-
-- Default / populated story
-- Empty state
-- Loading state
-- Error or validation state
-
-**Priority 3 — Layout and navigation**
-<list layout components found: Sidebar, Header, Tabs, etc.>
-
-- Typical use story
-- Collapsed / mobile story if responsive
-
----
-
-### Phase 3 — Document design tokens
-
-Create an MDX file at `.storybook/Introduction.mdx` or `src/stories/DesignTokens.mdx`.
-
-Include:
-
-1. **Colors** — render each color token as a swatch with its name and value
-2. **Typography** — render each type scale step as live text
-3. **Spacing** — render a visual ruler of the spacing scale
-4. **Border radius** — render boxes showing each radius token
-5. **Shadows** — render boxes showing each shadow token
-
-Reference the tokens from their actual source (CSS variables, theme object, Tailwind config) — do not hardcode values.
-
----
-
-### Phase 4 — Improve existing Markdown docs
-
-Based on the review in B1, apply these improvements to existing MD files:
-
-<list specific gaps found — e.g.:
-- "DESIGN.md documents colors but lacks typography — add a type scale table"
-- "No component-level docs exist — add README.md to Button and Card directories describing props and usage"
-- "docs/ui.md has outdated component names — update to match current file structure"
->
-
----
-
-### Phase 5 — Continuous improvement (ongoing)
-
-- Adopt the **story-first** habit: when a new component is added, its story file is created at the same time
-- Add Storybook to CI to catch visual regressions (Chromatic free tier or `test-storybook` for interaction tests)
-- When a component's API changes, update its story `args` and `argTypes` in the same PR
+### Phase 5 — CI gate
+- CI runs `<pm> test` (unit + storybook projects) and `<pm> build-storybook`.
+- Chromatic runs on PRs once `CHROMATIC_PROJECT_TOKEN` is set.
+- Rule for contributors: a UI component PR without a co-located story and spec is not mergeable.
 ```
 
----
+## B4 — Summary
 
-## B4 — Summary to user
-
-After outputting the plan, summarize:
-
-- What documentation currently exists and its quality score (good / partial / missing) per area
-- Which phase to tackle first based on the current state
-- If `DESIGN.md` was not found: recommend running `/design-expert` first, as it produces the token reference the Storybook plan depends on
-- If there were no project instructions: recommend running `/init-project` first so the Storybook adapter and install commands can be made fully accurate
+End with: docs that exist today (good / partial / missing per area), the first phase to execute, and — if DESIGN.md is missing or off-format — `Run /design-expert before Phase 3.`

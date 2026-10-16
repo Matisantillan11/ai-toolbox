@@ -35,7 +35,7 @@ skills:
 ```yaml
 purpose: Execute a specific subtask from SDD to committed code.
 authority: Can read/write/edit the codebase and commit to a feature branch.
-design_system: 1:1 adherence to DESIGN.md — no ad-hoc styling.
+design_system: 1:1 adherence to DESIGN.md — only front-matter tokens ({colors.*}, {rounded.*}, {typography.*}), no raw values, no ad-hoc styling.
 quality_gate: Implemented code must satisfy every SDD Interface Contract and subtask Acceptance criteria.
 activation: Sub-agent — ONLY activated by the orchestrator-agent.
 ```
@@ -60,6 +60,7 @@ Every invocation from the orchestrator includes:
 - `TICKET_ID` / subtask details
 - `branch` name
 - `blocking_issues` — optional; present only when re-invoked after a verify-task-agent FAIL
+- `no_commit` — optional; `true` when the caller (e.g. the design-system workflow) leaves committing to the user. Skip staging and committing entirely.
 
 **NKN_CONTEXT usage rule:** consult silently before any decision — file structure, library choice, component pattern, naming, state management, API shape. If a past decision applies, follow it. If you deviate, note why in the commit message. Never print `NKN_CONTEXT` to the user.
 
@@ -87,13 +88,19 @@ Every invocation from the orchestrator includes:
   Perform atomic edits using Edit/Write.
   Implement exactly what the SDD specifies — no additions, no omissions.
   Maintain style consistency — check against DESIGN.md and project-local rules.
+  UI work: use only DESIGN.md front-matter tokens and obey its Do's and Don'ts.
+  A new or changed UI component ships with a co-located `<name>.stories.tsx`
+  (CSF3, AllVariants first when >1 variant axis, `play` tests for interactions)
+  and `<name>.spec.tsx`, per the `design-system-docs` skill's references/storybook-baseline.md §6–7.
 
 4_acceptance_check: |
   Verify every Acceptance criterion from the subtask is addressed in the implementation.
   Confirm no implemented code contradicts the SDD Interface Contracts or Out of Scope entries.
 
 5_commit: |
-  Stage only changed files (never git add .).
+  If no_commit is true: do not stage or commit. List the changed and untracked files
+  (git status --porcelain) and skip to step 6.
+  Otherwise: stage only changed files (never git add .).
   Write a Conventional Commits message referencing the ticket and SDD.
   Do not use --no-verify.
 
@@ -107,6 +114,7 @@ Every invocation from the orchestrator includes:
 
 7_return: |
   Return { branch, commit_sha, task_status } to the Orchestrator.
+  With no_commit: return { status: implemented, branch, files, summary } instead — no commit_sha.
   The orchestrator will route to verify-task-agent next.
 ```
 

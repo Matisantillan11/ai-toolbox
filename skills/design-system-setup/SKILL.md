@@ -1,6 +1,6 @@
 ---
 name: design-system-setup
-description: End-to-end design system setup. Runs design-expert to extract and document all design information, then runs design-system-docs to audit or plan the Storybook implementation, and finally uses plan-expert to create a parent ClickUp ticket with all execution subtasks. Use when starting or improving the design system in a project.
+description: End-to-end design system setup. Runs design-expert to write a canonical DESIGN.md (YAML token front matter + fixed-order body), gates on its validation, runs design-system-docs to audit Storybook against the baseline (Storybook 10, addon-docs/a11y/vitest, Chromatic, CSF3 co-located stories with AllVariants + play tests, Foundations MDX) or plan its setup, then uses plan-expert to turn every finding into tracked subtasks. Use when starting or improving the design system in a project.
 allowed-tools: Glob Read Grep Write Bash AskUserQuestion mcp__clickup__clickup_get_workspace_hierarchy mcp__clickup__clickup_get_task mcp__clickup__clickup_create_task TaskCreate TaskUpdate
 effort: high
 ---
@@ -13,27 +13,25 @@ You are a design system orchestrator. You run three skills in sequence within th
 
 ## Phase 1 — Design Documentation (`design-expert`)
 
-Run the full `design-expert` skill as defined in its SKILL.md.
+Run the full `design-expert` skill as defined in its SKILL.md, including its `references/design-md-template.md`.
 
-This means:
-- Load the project instructions (use `PROJECT_CONTEXT` if the caller passed it; otherwise read `AGENTS.md` at the project root, or `CLAUDE.md` if `AGENTS.md` does not exist) and read `DESIGN.md` if it exists
-- Run the complete file discovery (Steps 2a–2e) and deep extraction (Steps 3a–3g) — do not skip any scan step
-- Write or update `DESIGN.md` at the project root
-- Complete the Step 5 confirmation output
+- Load project instructions (`PROJECT_CONTEXT` if passed; otherwise `AGENTS.md`, else `CLAUDE.md`) and the existing `DESIGN.md`.
+- Run the complete discovery (Step 2) and extraction (Step 3) — no step is skipped because a `DESIGN.md` already exists.
+- Write `DESIGN.md` in the canonical format and run its validation gate.
 
-Once `DESIGN.md` has been written or updated, store its full content as `DESIGN_MD_CONTENT` and proceed to Phase 2. Do not ask the user whether to continue.
+**Gate:** do not start Phase 2 until the design-expert validation gate reports `passed`. If an item cannot pass because the source genuinely lacks the data, it must be marked `_Not yet defined_` — that counts as passing; an unresolved `{group.key}` reference or a broken front matter does not.
+
+Store the written file as `DESIGN_MD_CONTENT` and proceed. Do not ask the user whether to continue.
 
 ---
 
 ## Phase 2 — Storybook Audit or Plan (`design-system-docs`)
 
-Run the full `design-system-docs` skill as defined in its SKILL.md.
+Run the full `design-system-docs` skill as defined in its SKILL.md, measuring against `references/storybook-baseline.md`.
 
-This means:
-- Detect whether Storybook is present (Step 2a) and whether Markdown docs exist (Step 2b)
-- Branch to Section A (Storybook audit) or Section B (implementation plan) accordingly
-- Complete all audit sub-steps or plan phases in full
-- Output the full report or plan
+- Storybook present → Section A: every check A1–A8, severity per A9, report per A10.
+- Storybook absent → Section B: framework package, inventory, and the 5-phase setup plan with final file contents.
+- Pass `DESIGN_MD_CONTENT` as context so the Foundations check (A8) and plan (Phase 3) compare against the file just written, not a stale copy.
 
 Once the skill completes, capture the entire output as `PHASE2_OUTPUT`. This is the raw material for Phase 3.
 
@@ -89,8 +87,9 @@ Determine the ticket title based on the Phase 2 branch:
 - **No Storybook found (Section B was run):** `"Set up Storybook and design system documentation"`
 
 Build the ticket description from `PHASE2_OUTPUT`:
-- Section A: summarize critical issues, improvements, and coverage gaps
-- Section B: summarize current documentation state and include the phase overview
+- Section A: baseline score, coverage %, then every ❌ Critical and ⚠️ High finding verbatim (path — current → expected)
+- Section B: context block plus the 5-phase overview
+- Both: link the baseline as the acceptance target — "Done = every check in design-system-docs A1–A8 passes"
 
 ```
 mcp__clickup__clickup_create_task {
@@ -108,6 +107,12 @@ Run the full `plan-expert` skill as defined in its SKILL.md, passing:
 
 - `--ticket-id <PARENT_TICKET_ID>`
 - `--description "<PHASE2_OUTPUT>"` — pass the full Phase 2 output so plan-expert has complete context
+
+Decomposition rules plan-expert must apply:
+- One subtask per config file group (dependencies + scripts, `.storybook/*`, Vitest config) and one per Foundations page.
+- One subtask per UI component gap, each listing its required stories, `play` tests and spec from the coverage table.
+- Each subtask's acceptance criteria quote the baseline checks it closes.
+- Order: DESIGN.md fixes → config → Foundations → core primitives → composites → CI gate.
 
 The skill will present the subtask plan for confirmation, wait for approval, then create all subtasks on the parent ticket. Do not skip the confirmation step — `plan-expert` owns it.
 
@@ -133,10 +138,10 @@ Once all phases are complete, output this summary and stop:
 ## Design System Setup Complete
 
 ### Phase 1 — Design Documentation
-DESIGN.md was written / updated at the project root.
+DESIGN.md written / updated at the project root — validation gate passed.
 
 ### Phase 2 — Storybook
-[Storybook audit completed — X critical issues, Y improvements identified]
+[Storybook audit — baseline score X/Y, coverage Z%, N critical / M high findings]
   OR
 [Storybook implementation plan produced — 5 phases defined]
 

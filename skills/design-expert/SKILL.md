@@ -1,438 +1,134 @@
 ---
 name: design-expert
-description: Scan the current project for all design-related information (theme, brand colors, typography, spacing, design system, component patterns, dark mode, etc.) and generate a DESIGN.md file to guide future AI agents in UI/UX work. Use when starting UI work on an unfamiliar codebase or to document an existing design system.
+description: Scan the current project for every confirmed design decision (color tokens, typography roles, radius, spacing, elevation, component styling, dark mode) and write or update a root DESIGN.md in the canonical two-layer format — YAML token front matter plus a fixed-order Markdown body that references tokens as {group.key}. Use when starting UI work on an unfamiliar codebase, documenting an existing design system, or when DESIGN.md has drifted from source.
 allowed-tools: Glob Read Grep Write AskUserQuestion
 effort: medium
 ---
 
 # design-expert
 
-**Role:** Senior UI/UX Engineer and design systems architect.  
-**Goal:** Extract every design decision baked into this codebase — colors, typography, spacing, component patterns, design system usage, theming — and produce a `DESIGN.md` that gives any AI agent enough context to write UI code that looks and feels native to this project.
+**Role:** Senior design systems engineer.
+**Goal:** Produce a `DESIGN.md` that an AI agent can follow to write UI that is indistinguishable from the existing product — every value confirmed in source, every rule tied to a token.
+
+The output format is fixed: [`references/design-md-template.md`](references/design-md-template.md). Read it before Step 4. Do not invent alternative structures.
 
 ---
 
-## Step 1 — Stack context and existing documentation
+## Non-negotiable rules
 
-### Project instructions
-
-Load the project instructions: use `PROJECT_CONTEXT` if the caller passed it; otherwise read `AGENTS.md` at the project root, or `CLAUDE.md` if `AGENTS.md` does not exist.
-
-- **If available:** Read the `## Stack → Styling` section (or the equivalent stack/styling notes) to identify the styling approach (Tailwind, CSS Modules, styled-components, etc.) and any component library (shadcn/ui, MUI, Chakra UI, Radix, etc.). This informs which files to prioritize in the scan.
-- **If not available:** Continue without them — detect the styling approach by scanning for config files in Step 2.
-
-### DESIGN.md
-
-Check whether `DESIGN.md` exists at the project root.
-
-- **If it exists:** Read it in full and keep it in memory. The full scan in Steps 2–3 runs regardless — the existing file is used later in Step 4 to identify gaps, stale values, and missing sections. Do not skip or shortcut any scan step because a DESIGN.md is already present.
-- **If it does not exist:** Continue — the file will be created from scratch in Step 4.
+1. **Confirmed or absent.** Every value written to `DESIGN.md` must be traceable to a file you read. No defaults from memory, no "typical" values. If a value is not in source, the key is omitted (front matter) or marked `_Not yet defined_` (body).
+2. **Extrapolation is labeled.** If a value is derived (e.g. a size inferred from two confirmed neighbours), append `(extrapolated)` in the body and keep it out of the front matter.
+3. **Front matter is the contract; the body explains it.** Body prose references tokens as `{colors.primary}`, `{rounded.md}`, `{typography.body}`. A raw value may appear next to its token for readability (`{colors.primary}` — `var(--color-primary)`), never instead of it, and never contradicting it.
+4. **Tokens are named by role, not appearance.** `primary`, `muted-foreground`, `heading-1`, `caption` — never `black`, `gray-500`, `text-60`.
+5. **Foreground pairs are mandatory.** Every fill/surface token that carries text has a `<name>-foreground` pair, or the body states why not.
+6. **Say what does not exist.** Absence is information: "No confirmed warning/success/info colors", "Shadow-free system", "No dark mode". Agents otherwise invent it.
+7. **Imperative voice.** Do's and Don'ts are commands tied to tokens. No "consider", "try to", "you may want to".
 
 ---
 
-## Step 2 — File discovery
+## Step 1 — Context
 
-Use Glob and Grep to locate all design-relevant files. Search broadly; do not skip files just because they look unfamiliar.
-
-### 2a — Config and token files
-
-Search for these patterns:
-
-```
-tailwind.config.ts
-tailwind.config.js
-tailwind.config.mjs
-theme.ts  /  theme.js  /  theme.mjs
-tokens.ts  /  tokens.js  /  design-tokens.*
-colors.ts  /  colors.js
-typography.ts  /  typography.js
-spacing.ts  /  spacing.js
-styles/theme.*
-src/theme.*
-lib/theme.*
-*.tokens.json
-tokens.json
-style-dictionary.config.*
-```
-
-### 2b — Global stylesheets
-
-Search for global CSS entry points:
-
-```
-globals.css  /  global.css
-index.css  /  main.css  /  app.css
-styles/globals.*  /  styles/index.*  /  styles/variables.*
-assets/styles/**
-```
-
-Read the files found — look for CSS custom properties (`--variable-name`), `@layer`, `@theme`, and `@font-face` declarations.
-
-### 2c — Component library configuration
-
-Grep dependency files (`package.json`, `Gemfile`, `pubspec.yaml`, `requirements.txt`, `pyproject.toml`, or equivalent) for UI component libraries. Cast a wide net — do not limit to any single framework:
-
-**React ecosystem**
-```
-shadcn-ui / @shadcn/ui  •  @mui/material / @mui/joy  •  @chakra-ui/react
-@radix-ui/*  •  @headlessui/react  •  @mantine/core  •  antd  •  react-aria-components
-```
-
-**Vue ecosystem**
-```
-vuetify  •  primevue  •  @nuxt/ui  •  quasar  •  naive-ui  •  element-plus  •  vant
-```
-
-**Svelte ecosystem**
-```
-@skeletonlabs/skeleton  •  shadcn-svelte  •  bits-ui
-```
-
-**Angular ecosystem**
-```
-@angular/material  •  primeng  •  ng-zorro-antd  •  @taiga-ui/core
-```
-
-**Framework-agnostic / web components**
-```
-daisyui  •  bootstrap  •  bulma  •  @shoelace-style/shoelace  •  flowbite
-```
-
-Also check for:
-- `components.json` at the project root (shadcn/ui config)
-- A dedicated components or UI directory: `src/components/ui/`, `src/lib/components/`, `app/components/`, `lib/ui/`
-- `theme/` or `design-system/` directories
-
-### 2d — Font and icon configuration
-
-Look for fonts via any of these mechanisms (framework-agnostic):
-- `@fontsource/*` packages in dependency files
-- `<link rel="stylesheet" href="...fonts.googleapis.com...">` or `<link rel="preconnect" ...>` in any HTML template (`index.html`, `app.html`, `_document.*`, layout files)
-- `@font-face` declarations in CSS/SCSS files
-- Framework-specific helpers: `next/font`, `nuxt-fonts`, `astro:assets` font imports — check layout/entry files for the framework detected in the project instructions
-
-Look for icon libraries in dependency files (any framework):
-```
-lucide  •  lucide-react  •  lucide-vue-next  •  lucide-svelte
-@heroicons/*  •  @tabler/icons-*  •  phosphor-*
-react-icons  •  vue3-icons  •  unplugin-icons
-@iconify/*  •  @fortawesome/*  •  material-icons
-```
-
-### 2e — Storybook and documentation
-
-Check for:
-- `.storybook/` directory and its `main.*` / `preview.*` files
-- `docs/design/`, `docs/ui/`, `docs/components/` directories
-- Any `DESIGN*.md`, `STYLE*.md`, or `UI*.md` files already present
+1. Load project instructions: `PROJECT_CONTEXT` if the caller passed it; otherwise `AGENTS.md` at the root, else `CLAUDE.md`. Note the styling approach and component library.
+2. If `DESIGN.md` exists, read it fully and keep it as `EXISTING_DESIGN_MD`. The full scan still runs — the existing file is only used in Step 4 to detect drift and preserve hand-written context.
+3. If a Storybook foundations page exists (`stories/foundations.mdx`, `**/*oundations*.mdx`, `**/*okens*.mdx`), read it — it must mirror `DESIGN.md` and you will report drift in Step 5.
 
 ---
 
-## Step 3 — Deep read and extraction
+## Step 2 — Discovery
 
-Read every file found in Step 2. Extract the following information precisely — use actual values from the code, never guess.
+Locate sources in this priority order. **Higher rows win on conflict.**
 
-### 3a — Color system
+| Priority | Source                     | Globs / signals                                                                                                                               |
+| -------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1        | Runtime theme tokens       | `app/globals.css`, `**/globals.css`, `**/theme.css`, `**/variables.css`, `:root {`, `.dark {`, `[data-theme`, `@theme`                        |
+| 2        | Theme config               | `tailwind.config.*`, `theme.{ts,js}`, `tokens.{ts,js,json}`, `*.tokens.json`, `style-dictionary.config.*`, `createTheme(`, `definePreset(`   |
+| 3        | Component source           | `components/ui/**`, `src/components/ui/**`, `lib/ui/**` — variant maps (`cva(`, `*-variants.constants.*`), class strings                      |
+| 4        | Font loading               | `next/font` in layouts, `fonts.googleapis.com` links, `@fontsource/*`, `@font-face`                                                           |
+| 5        | Brand assets               | `public/brand/**`, `app/icon.*`, `public/logo*`                                                                                               |
+| 6        | Existing docs              | `DESIGN.md`, `FOUNDATIONS.md`, `*.mdx` under `stories/`, `docs/design/**`                                                                     |
 
-From `tailwind.config.*`, CSS variables, or theme files, extract:
+Also record from `package.json` (or equivalent): component/headless library (`@radix-ui/*`, `@mui/*`, `@headlessui/*`, `vuetify`, …), variant tooling (`class-variance-authority`, `tailwind-merge`, `clsx`), icon library (`lucide-*`, `@heroicons/*`, …), theming (`next-themes`, …), Tailwind major version (v4 = CSS-first `@theme`, no config file required).
 
-- **Brand / primary colors** — name and hex/hsl/rgb value
-- **Neutral / gray scale** — all shades if defined
-- **Semantic colors** — success, warning, error, info
-- **Background and surface colors** — page background, card/panel surface, muted/subtle backgrounds
-- **Text colors** — primary text, secondary/muted text, disabled, on-primary
-- **Border colors**
-- **Dark mode variants** — if the project supports dark mode, show the dark-mode counterparts
-
-If colors are defined as CSS variables (`--primary: 222 47% 11%`), record both the variable name and its resolved value. If they reference a Tailwind palette (e.g., `colors.blue[600]`), resolve and record the hex.
-
-### 3b — Typography
-
-Extract:
-
-- **Font families** — primary (body), heading/display, monospace (code). Include the CSS variable or Tailwind key used.
-- **Font sizes** — the full scale if defined in Tailwind or a theme file (xs, sm, base, lg, xl, 2xl, …). Include px/rem values.
-- **Font weights** — which weights are used (regular, medium, semibold, bold)
-- **Line heights** — if customized from defaults
-- **Letter spacing** — if customized
-
-### 3c — Spacing and layout
-
-Extract:
-
-- **Spacing scale** — if customized in Tailwind or a theme (list key → value pairs)
-- **Container / max-width** — the main content container width(s)
-- **Breakpoints** — all responsive breakpoints (sm, md, lg, xl, 2xl or custom names) with their pixel values
-
-### 3d — Visual style tokens
-
-Extract:
-
-- **Border radius** — all defined values (none, sm, md, lg, xl, full, etc.) and which one is used most (the "default" rounding)
-- **Box shadows / elevation** — defined shadow tokens
-- **Transitions / animations** — any custom `transitionTimingFunction`, `transitionDuration`, or keyframe animations defined in the config
-
-### 3e — Design system and component library
-
-Based on what was found in Step 2c, read the relevant config and entry files. Apply the matching instructions below; if multiple libraries are present, cover each one.
-
-**shadcn/ui**
-- Read `components.json`: note `style` (default vs new-york), `baseColor`, `cssVariables` flag
-- List all components found in the UI components directory (names only)
-- Note whether theming is CSS-variable-based or direct utility-class-based
-
-**MUI (React) / Angular Material / Vuetify / PrimeVue / similar token-driven library**
-- Find the theme/provider setup file (e.g., `createTheme`, `definePreset`, `vuetify.config.*`, `angular.json` theme entry)
-- Extract: primary and accent palette, typography config, border radius / shape config
-- Note the library version
-
-**Tailwind plugin libraries (daisyUI, Flowbite, etc.)**
-- Read `tailwind.config.*` for the plugin entry and any theme overrides it introduces
-- List configured themes (e.g., daisyUI themes array)
-
-**CSS framework without JS (Bootstrap, Bulma, etc.)**
-- Identify how the library is imported (CDN link, npm import, SCSS entry)
-- Note any variable overrides (e.g., `_variables.scss` customizing Bootstrap tokens)
-
-**Shoelace / web components**
-- Note the base URL or npm package, and where CSS custom property overrides are defined
-
-**Custom or no library**
-- Describe where shared UI components live, how they are structured, and what primitives exist
-
-### 3f — Dark mode strategy
-
-Determine how dark mode is implemented:
-
-- **Tailwind `darkMode: 'class'`** — dark mode toggled via a class on `<html>` or `<body>` (note the class name, often `dark`)
-- **Tailwind `darkMode: 'media'`** — follows OS preference via `prefers-color-scheme`
-- **CSS variables swap** — light/dark values swapped via `:root` vs `.dark` selectors
-- **No dark mode** — only one theme
-
-### 3g — Component patterns
-
-Scan for the main components directory (`src/components/`, `components/`, `app/components/`, `lib/components/`, or equivalent detected from the framework). Use Glob to list what exists and Grep to spot patterns — do not read every file.
-
-Identify:
-- **Directory structure** — flat vs feature-grouped vs atomic (atoms/molecules/organisms)
-- **Naming conventions** — casing of filenames and directories, use of index files / barrel exports, co-located style files
-- **Component format** — Single-File Components (`.vue`, `.svelte`), class-based (Angular), function-based (React/Solid/Preact), template + TS (Angular), plain HTML + JS, etc.
-- **Variant system** — how component variants are expressed: utility classes toggled via a helper (`cva`, `clsx`, `cx`, `twMerge`), props mapped to CSS classes, SCSS mixins, CSS custom properties, or a JS object map
-- **Typical component anatomy** — read 2–3 representative leaf components (Button, Input, Card or equivalent) and describe in prose how they are written: where props/types are declared, how styles are applied, how variants or states are handled. Quote the actual file format — do not assume a specific framework pattern.
+If the project uses a non-web stack (React Native, Swift, Kotlin), map the same categories to its theme objects — the output format does not change.
 
 ---
 
-## Step 4 — Write or update DESIGN.md
+## Step 3 — Extraction
 
-### If DESIGN.md does not exist → write from scratch
+Read every file found. Extract into a working table `TOKEN | VALUE | SOURCE_FILE:LINE`. A row without a source is dropped.
 
-Write `DESIGN.md` at the project root using the structure below. Populate every section with actual values extracted in Step 3. If a section is genuinely absent from the project (e.g., no dark mode, no custom spacing), write a brief "Not configured" note rather than omitting the section.
-
-Use code blocks for token tables and config snippets. Keep prose tight — this file is read by AI agents, not humans.
-
-### If DESIGN.md already exists → compare, improve, and overwrite
-
-Before writing anything, compare the existing file against the freshly extracted data from Step 3. Go section by section and identify:
-
-- **Stale values** — token names, hex values, font names, or library versions in the file that no longer match what the codebase actually contains
-- **Missing sections** — sections present in the template below that do not exist in the current file
-- **Incomplete sections** — sections that exist but are left as placeholder comments or contain less detail than what Step 3 produced
-- **New findings** — information extracted in Step 3 that was not in the existing file at all (e.g., a new icon library was added, dark mode was implemented since the last run)
-
-Then write the fully updated file — same structure as below, with all extracted data merged in and all issues above resolved. Do not preserve stale content; replace it with accurate values. Do not delete sections that contain hand-written context not derivable from the scan — preserve and integrate them.
-
-After writing, list every change made in the Step 5 summary (see below).
-
-```markdown
-# Design System
-
-> Auto-generated by `/design-expert`. Edit manually to add context the scan could not infer.
-
-## Design Stack
-
-- **Styling approach:** <!-- e.g., Tailwind CSS v3.4 + CSS variables -->
-- **Component library:** <!-- e.g., shadcn/ui (new-york style) -->
-- **Icon library:** <!-- e.g., Lucide React -->
-- **Font loading:** <!-- e.g., Google Fonts via <link>, @fontsource/inter, next/font, nuxt-fonts -->
+- **Colors** — every semantic variable and its light/dark values. Decide the value style once for the whole file: `var(--color-*)` if tokens swap at runtime (dark mode / multi-theme), resolved hex otherwise.
+- **Typography** — families + loaded weight ranges; derive *roles* from usage: find the classes on `h1`/hero headings, card titles, labels/buttons, body paragraphs, captions/tooltips. Record size, weight, line-height, tracking per role.
+- **Radius** — every radius token; count usages (`Grep -c "rounded-<key>"`) to order the scale by frequency and to assign each tier its real use (cards vs buttons vs pills).
+- **Spacing** — base unit; recurring paddings on cards/buttons (e.g. `p-6`, `px-8 py-3`).
+- **Elevation** — every `shadow-*` usage grouped by surface type (resting, hover, floating, overlay). If none, the system is shadow-free.
+- **Layout** — container max-width, gutters, breakpoints (custom or framework default — say which).
+- **Components** — for each UI primitive with confirmed styling (button, card, input, tooltip, badge, dialog, …): fill, text, border, radius, padding, variants, states. These feed both `components:` in front matter and `## Components` in the body.
+- **Dark mode** — strategy and mechanism.
+- **Brand** — logo files and their variants; quote the canonical SVG if it is small and authoritative.
 
 ---
 
-## Color System
+## Step 4 — Write `DESIGN.md`
 
-### Brand / Primary
+Follow [`references/design-md-template.md`](references/design-md-template.md) exactly: front matter keys, body section order, heading names.
 
-| Token | Light | Dark |
-|-------|-------|------|
-| `--primary` | `#...` | `#...` |
-| ... | | |
+### New file
 
-### Neutrals
+Fill every section from the extraction table. Write `_Not yet defined_` for body subsections with no confirmed data — never drop a section.
 
-| Token | Value |
-|-------|-------|
-| ... | |
+### Existing file → reconcile, then overwrite
 
-### Semantic
+Classify every difference between `EXISTING_DESIGN_MD` and the extraction table:
 
-| Token | Light | Dark | Usage |
-|-------|-------|------|-------|
-| `--destructive` | | | Errors, delete actions |
-| ... | | | |
+| Class      | Action                                                                                     |
+| ---------- | ------------------------------------------------------------------------------------------ |
+| Stale      | Source disagrees with the doc → replace with source value                                  |
+| Missing    | Template section/key absent → add                                                          |
+| Incomplete | Section is placeholder-only but source now has data → populate                            |
+| New        | Source has data the doc never covered → add                                                |
+| Hand-written | Rationale or rules not derivable from source (brand intent, product decisions) → preserve verbatim |
+| Off-format | Content valid but in a non-template structure (e.g. old `# Design System` tables) → migrate into the template shape |
 
-### Usage rules
-<!-- How to use color in this project — e.g., "Always use CSS variables, never raw hex. Background surfaces use --background and --card." -->
+Then write the full file. Never leave the old and new structure side by side.
 
----
+### Validation gate — run before reporting
 
-## Typography
+Re-read the written file and check every item. Fix and re-check until all pass:
 
-### Font Families
-
-| Role | Family | CSS variable / Tailwind key |
-|------|--------|----------------------------|
-| Body | Inter | `--font-sans` / `font-sans` |
-| Mono | JetBrains Mono | `--font-mono` / `font-mono` |
-
-### Type Scale
-
-| Key | Size | Line height | Usage |
-|-----|------|-------------|-------|
-| xs | 12px / 0.75rem | 1rem | Captions, labels |
-| sm | 14px / 0.875rem | 1.25rem | Secondary text |
-| base | 16px / 1rem | 1.5rem | Body text |
-| ... | | | |
-
-### Font weights in use
-<!-- e.g., 400 (normal), 500 (medium), 600 (semibold), 700 (bold) -->
+- [ ] Front matter parses as YAML and contains `version`, `name`, `description`, `colors`, `typography`, `rounded`, `spacing`.
+- [ ] Every `{group.key}` reference in front matter `components:` and in the body resolves to a front-matter key.
+- [ ] Body sections appear in this order: Overview, Colors, Typography, Layout, Elevation & Depth, Shapes, Components, Do's and Don'ts.
+- [ ] Every non-`foreground`/`border`/`input`/`ring` color has a `-foreground` pair or an explicit note.
+- [ ] No raw value in the body contradicts the front matter.
+- [ ] Do's and Don'ts each have ≥ 3 imperative bullets, each naming at least one token.
+- [ ] No sentence uses "probably", "likely", "seems", "might", "typically".
 
 ---
 
-## Spacing & Layout
-
-### Container
-
-<!-- e.g., max-width: 1280px, centered with px-4 sm:px-6 lg:px-8 -->
-
-### Breakpoints
-
-| Name | Min-width |
-|------|-----------|
-| sm | 640px |
-| md | 768px |
-| lg | 1024px |
-| xl | 1280px |
-| 2xl | 1536px |
-
-### Spacing scale
-<!-- Note only if customized from Tailwind defaults. Otherwise write "Tailwind default spacing scale." -->
-
----
-
-## Visual Tokens
-
-### Border Radius
-
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--radius` | `0.5rem` | Default radius for cards, inputs, buttons |
-| ... | | |
-
-### Shadows
-
-<!-- List defined shadow tokens or write "Tailwind default shadows." -->
-
-### Transitions
-
-<!-- e.g., "Standard transition: 150ms ease-in-out on interactive elements. Defined via Tailwind's transition-* utilities." -->
-
----
-
-## Dark Mode
-
-- **Strategy:** <!-- class / media / none -->
-- **Toggle class:** <!-- e.g., `.dark` on <html> -->
-- **Implementation:** <!-- e.g., "CSS variables for all color tokens. Light values in :root, dark values in .dark { ... }" -->
-
----
-
-## Component Library Details
-
-<!-- Expand based on what was found. Examples: -->
-
-### shadcn/ui
-- Style: <!-- default | new-york -->
-- Base color: <!-- slate | gray | zinc | neutral | stone -->
-- CSS variables: <!-- true | false -->
-- Components present: <!-- comma-separated list from src/components/ui/ -->
-
----
-
-## Component Patterns
-
-### Directory structure
-<!-- e.g., src/components/ui/ (shadcn primitives), src/components/ (product components), src/features/**/ (feature-scoped components) -->
-
-### Naming conventions
-<!-- e.g., PascalCase filenames, kebab-case directories, index.ts barrel files -->
-
-### Variant system
-<!-- Describe how variants are expressed in this project — e.g.:
-  - CVA (class-variance-authority) + cn() helper — React/Tailwind projects
-  - SCSS mixins / BEM modifiers — CSS-heavy projects
-  - Props mapped to CSS custom property values — web component projects
-  - defineProps + :class binding — Vue SFC projects
-  - @HostBinding / @Input — Angular projects
--->
-
-### Typical component anatomy
-<!-- Describe in prose (no assumed framework) how a representative leaf component is structured.
-Include: where props/types are declared, how styles are applied, how variants or states are handled.
-Paste a short snippet from an actual file in this codebase as the canonical example. -->
-
----
-
-## Rules for AI Agents
-
-<!-- Auto-generated summary of what an AI agent MUST follow when writing UI code for this project. Adjust after generation if needed. -->
-
-1. **Color:** Always use the project's color tokens (CSS variables, theme values, or utility classes) — never hardcode raw hex/rgb values.
-2. **Spacing:** Use the project's spacing system (utility classes, theme scale, or CSS variables) — never use arbitrary inline values unless the system provides no alternative.
-3. **Components:** Reuse existing components from the UI components directory before creating new primitives.
-4. **Variants:** Extend the established variant system (CVA, SCSS mixins, prop-to-class maps, etc.) — do not bypass it with one-off overrides.
-5. **Dark mode:** Every color choice must work in both light and dark mode (if applicable). Use tokens that swap automatically.
-6. **Typography:** Use the defined type scale — avoid arbitrary sizes outside the established scale.
-7. **Icons:** Use only the detected icon library for consistency — do not mix icon sets.
-```
-
----
-
-## Step 5 — Confirm to the user
-
-After writing `DESIGN.md`, report:
-
-- What design system / styling approach was detected
-- Which color tokens, font families, and component library were documented
-- Any sections left as "Not configured" because they were genuinely absent
-- Any ambiguities where the scan produced uncertain results (e.g., "Colors found in both tailwind.config.ts and globals.css — CSS variables take precedence per the shadcn/ui setup")
-- Suggest running `/init-project` first if there were no project instructions and the scan had to work without stack context
-
-**If DESIGN.md already existed**, also report a changelog of every improvement made:
+## Step 5 — Report
 
 ```
-## DESIGN.md updated
+## DESIGN.md <created | updated>
 
-### Updated (stale → current)
-- <section>: <what changed> (e.g., "Color System: --primary was #3b82f6, now #2563eb after theme change")
+**Stack:** <styling approach> · <component/headless library> · <icon library> · <font loading>
+**Tokens documented:** <n> colors · <n> typography roles · <n> radius steps · <n> components
+**Validation gate:** passed
 
-### Added (new information)
-- <section>: <what was added> (e.g., "Dark Mode section added — project now uses class-based dark mode")
+### Changes (update only)
+- Stale → current: <section — old → new>
+- Added: <section — what>
+- Migrated: <section — from old structure>
+- Preserved: <section — hand-written content kept>
 
-### Completed (was placeholder → now populated)
-- <section>: <what was filled in> (e.g., "Component Patterns: Variant system was empty, now documents CVA usage")
+### Not yet defined
+- <sections left as _Not yet defined_ and why (no source found)>
 
-### Preserved (hand-written content kept as-is)
-- <section>: <what was kept> (e.g., "Rules for AI Agents: custom rule 8 kept unchanged")
+### Conflicts resolved
+- <e.g. "--radius in globals.css (0.75rem) overrides tailwind.config borderRadius.lg (0.5rem) — priority 1 wins">
 
-### No changes needed
-- <section>: <what was already accurate>
+### Foundations drift
+- <"stories/foundations.mdx matches DESIGN.md" | list of values that differ — DESIGN.md is the source of truth; run /design-system-docs to fix the page>
 ```
+
+If no project instructions existed, add one line: `Run /init-project to give future scans stack context.`

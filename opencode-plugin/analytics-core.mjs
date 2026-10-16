@@ -7,6 +7,7 @@ const AI_TOOLBOX_AGENTS = new Set([
   "plan-expert-agent",
   "implement-task-agent",
   "design-system-setup-agent",
+  "component-scout-agent",
 ])
 
 export function createSessionState(parentID = null) {

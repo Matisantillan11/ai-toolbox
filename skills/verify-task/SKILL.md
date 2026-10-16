@@ -1,7 +1,7 @@
 ---
 name: verify-task
 description: Verifies a completed implementation against its SDD. Runs automated checks (lint, type check, tests), code-review, and validates every acceptance criterion defined in the SDD. Returns a structured pass/fail verification report. Invoked only by verify-task-agent.
-argument-hint: [--branch <branch>] [--base-branch <base>] [--ticket-id <id>]
+argument-hint: [--branch <branch>] [--base-branch <base>] [--ticket-id <id>] [--diff-scope working_tree]
 allowed-tools: Glob Read Grep Bash mcp__clickup__clickup_get_task
 effort: medium
 ---
@@ -21,7 +21,7 @@ You are the final gate before code reaches a Pull Request. Find gaps, do not fil
 
 ## Step 1 — Load Context
 
-Parse `$ARGUMENTS` for `--branch`, `--base-branch`, and `--ticket-id`.
+Parse `$ARGUMENTS` for `--branch`, `--base-branch`, `--ticket-id`, and `--diff-scope`.
 
 **SDD:** The SDD is passed directly by the caller as a structured input — not fetched from a file. It must contain a **System-Level Acceptance Criteria** section. If it is missing or empty, stop and report:
 > "SDD is missing or has no System-Level Acceptance Criteria. Cannot verify."
@@ -46,6 +46,15 @@ Identify files changed on `VERIFICATION_BRANCH` relative to `BASE_BRANCH`:
 ```bash
 git diff --name-only <BASE_BRANCH>...<VERIFICATION_BRANCH>
 ```
+
+**If `--diff-scope working_tree`:** the work is uncommitted on purpose. Everything uncommitted is in scope — modified and untracked files alike:
+
+```bash
+git diff --name-only HEAD
+git ls-files --others --exclude-standard
+```
+
+Use the union. Never stage files to inspect them. Read diffs with `git diff HEAD -- <file>`; read untracked files in full.
 
 Store as `CHANGED_FILES`.
 
@@ -79,6 +88,8 @@ Identify affected test files by matching `CHANGED_FILES` against the test file n
 <test command> <affected test pattern>
 ```
 
+**Storybook stories:** if `CHANGED_FILES` contains `*.stories.*` files and the project has a Storybook Vitest project (a `storybook` project in `vitest.config.*`, or a `test:storybook` script), also run it — e.g. `<pm> test:storybook` or `<pm> vitest run --project=storybook`. This is what executes `play` interaction tests and the a11y addon checks; a story file that is never run is not verified.
+
 - PASS: all tests pass
 - FAIL: record failing test names and output; mark 2c as FAIL and continue
 
@@ -91,6 +102,8 @@ Identify affected test files by matching `CHANGED_FILES` against the test file n
 Run the full `code-review` skill scoped to the diff between `VERIFICATION_BRANCH` and `BASE_BRANCH`:
 
 - Pass `--base-branch <BASE_BRANCH>`
+
+**If `--diff-scope working_tree`:** the branch-vs-base diff is empty or unrelated, because nothing is committed. Run the `code-review` skill against `CHANGED_FILES` instead: review `git diff HEAD -- <file>` for modified files and the full content of untracked files. Never stage or commit to make them visible.
 
 Collect all findings. Classify each as:
 - ❌ **Error** — blocks PASS verdict
@@ -124,7 +137,7 @@ If subtasks were fetched in Step 1, verify each subtask's **Acceptance criteria*
 ## Verification Report
 
 **Branch:** <VERIFICATION_BRANCH>
-**Base:** <BASE_BRANCH>
+**Base:** <BASE_BRANCH> | **Diff scope:** working tree (uncommitted + untracked vs HEAD)
 **Verdict:** ✅ PASS | ❌ FAIL
 
 ---

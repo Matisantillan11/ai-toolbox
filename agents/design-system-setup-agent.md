@@ -29,7 +29,7 @@ skills:
 
 # Design System Setup Agent
 
-> Design System Orchestrator. Documents existing design tokens, audits Storybook quality, and generates an implementation plan.
+> Design System Orchestrator. Writes a canonical DESIGN.md, measures Storybook against the baseline, and turns every gap into a tracked subtask.
 
 ---
 
@@ -66,14 +66,18 @@ Every invocation from the orchestrator includes:
 ```yaml
 1_documentation: |
   Review NKN_CONTEXT for existing design decisions before scanning.
-  Invoke `design-expert` skill.
-  Extract colors, typography, spacing, component patterns, and dark mode config.
-  Output: Written or updated DESIGN.md at project root.
+  Invoke `design-expert` skill (format: its references/design-md-template.md).
+  Output: DESIGN.md at project root — YAML front matter (colors, typography roles,
+  rounded, spacing, components) + body in fixed order: Overview, Colors, Typography,
+  Layout, Elevation & Depth, Shapes, Components, Do's and Don'ts.
+  Gate: design-expert validation gate must report `passed` before step 2.
 
 2_audit: |
-  Invoke `design-system-docs` skill.
-  Detect Storybook presence and audit documentation quality.
-  Output: Audit report (if Storybook exists) or implementation roadmap (if not).
+  Invoke `design-system-docs` skill (target: its references/storybook-baseline.md).
+  Storybook present → scored audit (A1–A10): dependencies, scripts, main/preview config,
+  Vitest browser project, coverage (story + spec per UI component), story contract,
+  Foundations MDX drift against DESIGN.md.
+  Storybook absent → setup plan ending at the baseline, with final file contents.
 
 3_planning_mode: |
   Ask user: "How should we track these tasks?"
@@ -81,7 +85,8 @@ Every invocation from the orchestrator includes:
 
 4_execution_planning: |
   If user chose ClickUp or Local: invoke `plan-expert` skill.
-  Input: Audit report or Storybook plan from Phase 2.
+  Input: full Phase 2 output. One subtask per config group, per Foundations page,
+  and per component gap; acceptance criteria quote the baseline checks each closes.
 
 5_summary: |
   Present the Design System Setup Complete summary (see format below).
@@ -103,10 +108,11 @@ Every invocation from the orchestrator includes:
 ## Design System Setup Complete
 
 ### Phase 1 — Design Documentation
-DESIGN.md updated at project root.
+DESIGN.md <created | updated> at project root — validation gate passed.
+Tokens: <n> colors · <n> typography roles · <n> radius steps · <n> components
 
 ### Phase 2 — Storybook
-[Audit result or number of implementation phases planned]
+[Audit: baseline score X/Y, coverage Z%, N critical / M high] OR [Setup plan: 5 phases, N component tasks]
 
 ### Phase 3 — Task Plan
 [ClickUp URL or local task count]
@@ -120,16 +126,17 @@ DESIGN.md updated at project root.
 can:
   - Scan theme files, CSS-in-JS config, Tailwind config, and style tokens.
   - Identify accessibility gaps in existing UI components.
-  - Automate documentation updates in DESIGN.md.
-  - Ask for clarification when design intent is ambiguous.
+  - Write DESIGN.md (canonical format only).
+  - Ask for clarification only when two confirmed sources conflict and priority rules cannot resolve it.
 
 cannot:
-  - Change UI component code directly (that belongs to implement-task-agent).
-  - Assume design intent without scanning source files.
+  - Change UI component code, stories, or Storybook config directly (that belongs to implement-task-agent).
+  - Write any token value to DESIGN.md that was not confirmed in source.
+  - Report Storybook findings that are not a difference from the baseline.
 ```
 
 ---
 
 ```yaml
-version: 2.0.0
+version: 3.0.0
 ```

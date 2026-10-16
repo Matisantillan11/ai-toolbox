@@ -75,7 +75,7 @@ This is the **default agent**. It activates on every user message, including:
 
 2_intent_classification: |
   Analyze user message. Classify intent as one of:
-  new_feature | quick_task | implementation | refactor | bug_fix | design_system | code_review | create_pr | knowledge_management | unknown.
+  new_feature | quick_task | implementation | refactor | bug_fix | design_system | design_component | code_review | create_pr | knowledge_management | unknown.
 
 3_context_gathering: |
   First, read the project instructions file at the repository root: AGENTS.md, or CLAUDE.md if AGENTS.md
@@ -88,6 +88,8 @@ This is the **default agent**. It activates on every user message, including:
 
 4_environment_setup: |
   For code changes: git checkout -b {task-id}-{slug} before delegating.
+  Exception — design_component: skip this step. The route creates its own branch after the user approves
+  the proposal (sequential step 3 / the workflow's Implement hop), and detect mode creates none.
 
 4b_execution_mode: |
   Pick how the routing sequence runs — see "Execution Modes" below.
@@ -224,11 +226,24 @@ workflow:
       args: { intent, request, ticketId, sdd, branch, baseBranch, nknContext, projectContext }
     bug_fix → ai-toolbox:bug-fix
       args: { request, ticketId, branch, baseBranch, nknContext, projectContext }
+    design_component → ai-toolbox:design-system
+      args: { request, mode, approvedProposal, branch, nknContext, projectContext }
+      Exception to the opt-in rule: on Claude Code, design_component ALWAYS runs this workflow
+      when the Workflow tool is available — no slash command or "run as workflow" request needed.
   results:
     delivered   → report PR URL, then run step 8 memory closeout.
     needs_input → ask the user the returned questions, then relaunch with the answers added to `request`
                   (pass the returned `sdd` when present so planning is not repeated).
     blocked     → report the stage and findings; do not open a PR by other means.
+    design-system workflow only:
+      needs_approval   → show the proposal; on approval relaunch with { approvedProposal, mode, branch } from the
+                         result; on change requests relaunch with the feedback appended to `request`.
+      reported         → show the reuse report (detect mode); nothing was written.
+      needs_input      → ask the questions, then relaunch carrying the returned { approvedProposal, mode, branch }
+                         when present (stage implement), appending the answers to approvedProposal as clarifications;
+                         for stage start, pass the answer as `mode`; for stage analyze, append it to `request`.
+      ready_for_review → show branch, files, checks run, notes and the verification report. The changes are uncommitted on purpose —
+                         never commit, push, or open a PR; the user reviews and commits.
   hint: When running as a Claude Code subagent for one of these intents, still run sequentially, and mention
         once that `/ai-toolbox:deliver-task` or `/ai-toolbox:bug-fix` runs the same flow with parallel gates.
 ```
@@ -426,9 +441,27 @@ bug_fix:
     If the bug cannot be reproduced, stop and report what was tried — do not fix blind.
 
 design_system:
-  when: Documenting or setting up the project design system or Storybook.
+  when: Documenting DESIGN.md, or auditing / setting up Storybook.
   sequence: design-system-setup-agent
   first_hop: design-system-setup-agent
+
+design_component:
+  when: >
+    Creating or extending a design-system component, building a POC from existing components,
+    or detecting reusable / duplicated components.
+  sequence: component-scout-agent → (user approval) → implement-task-agent (no_commit) → verify-task-agent (working tree) → a11y-auditor → review summary
+  first_hop: component-scout-agent
+  sequential_steps: |
+    1. component-scout-agent → proposal, or report in detect mode (show it and stop).
+    2. Show the proposal and ask the user to approve or change it. Changes → re-run step 1 with the feedback.
+    3. Check out the feature branch (design/<branchSlug>), creating it from the current branch if missing.
+    4. implement-task-agent with no_commit: true and the approved proposal as the SDD.
+    5. verify-task-agent with diff_scope: working_tree. On FAIL, back to step 4 with blocking_issues (max 3 fix rounds).
+    6. a11y-auditor at WCAG AA on the uncommitted UI files — read-only: do not modify files or export a report file.
+    7. Review summary: branch, files, checks run, notes.
+  note: >
+    Everything uncommitted (modified + untracked) is the run's scope. Never commit, push, stage, or open a PR —
+    the user reviews and commits. POCs live in _pocs/<name>/ and never enter the design system.
 
 code_review:
   when: User wants to review uncommitted or branch changes before a PR.

@@ -53,6 +53,7 @@ Every invocation from the orchestrator includes:
 - `SDD` — the Software Design Document produced by `plan-expert-agent`; contains system-level acceptance criteria
 - `branch` — the feature branch to verify
 - `base_branch` — the target branch for the eventual PR
+- `diff_scope` — optional; `working_tree` verifies every uncommitted change (modified + untracked) against `HEAD` instead of `branch` vs `base_branch`. Used when the caller leaves committing to the user.
 - `TICKET_ID` — optional; used to fetch subtask-level acceptance criteria from ClickUp
 
 **NKN_CONTEXT usage rule:** consult silently to understand project conventions when evaluating code quality. Never surface `NKN_CONTEXT` to the user.
@@ -71,6 +72,7 @@ Every invocation from the orchestrator includes:
     --branch <branch>
     --base-branch <base_branch>
     --ticket-id <TICKET_ID>  (if available)
+    --diff-scope working_tree  (if diff_scope is working_tree)
   Pass the full SDD as structured input alongside these arguments.
 
 3_evaluate_result: |
