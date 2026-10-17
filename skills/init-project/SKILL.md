@@ -7,103 +7,32 @@ effort: medium
 
 # init-project
 
-Scan the current project and detect its full tech stack, then generate an `AGENTS.md` file with structured context so future Claude agents have everything they need to work effectively in this codebase.
+Detect the project's stack and write `AGENTS.md` at the root for future agents.
 
-## Steps
+## 1. Scan (Glob/Read — never guess)
 
-### 1. Scan for stack indicators
+- **Languages**: `package.json` (Node/JS/TS), `tsconfig.json` (TS), `requirements.txt`/`pyproject.toml`/`setup.py`/`Pipfile` (Python), `Cargo.toml` (Rust), `go.mod` (Go), `pom.xml`/`build.gradle(.kts)` (Java/Kotlin), `*.csproj`/`*.sln` (.NET), `Gemfile` (Ruby), `composer.json` (PHP), `pubspec.yaml` (Dart/Flutter).
+- **Frameworks**: package.json `next`, `react`, `vue`, `svelte`, `angular`, `express`, `fastify`, `hono`, `remix`, `astro`, `nuxt`, `gatsby`; Python `django`, `flask`, `fastapi`, `sqlalchemy`; Cargo `axum`, `actix-web`, `rocket`; Go `gin`, `echo`, `fiber`.
+- **DB/ORM**: `prisma`, `drizzle-orm`, `typeorm`, `sequelize`, `mongoose`, `pg`, `mysql2`, `sqlite3`, `redis`, `supabase`, `@planetscale`, `@neon`; `prisma/schema.prisma`, `drizzle.config.*`.
+- **Styling**: `tailwind.config.*`; `styled-components`, `@emotion`, `sass`, `less`, `@mui`, `@chakra-ui`, `@radix-ui`, `shadcn`.
+- **Build**: `vite.config.*`, `webpack.config.*`, `turbo.json`, `nx.json`, `rollup.config.*`, `.swcrc`.
+- **Testing**: `jest`, `vitest`, `@testing-library`, `playwright`, `cypress`, `mocha`; `pytest.ini`/`conftest.py`; `jest.config.*`, `vitest.config.*`.
+- **Infra**: `Dockerfile`, `docker-compose.*`, `.github/workflows/`, `vercel.json`/`.vercel/`, `netlify.toml`, `fly.toml`, `terraform/`/`*.tf`, `kubernetes/`/`k8s/`/YAML with `kind: Deployment`.
+- **Monorepo**: `pnpm-workspace.yaml`, `turbo.json`, `nx.json`, `lerna.json`, `packages/`/`apps/`.
+- **Package manager**: `pnpm-lock.yaml`, `yarn.lock`, `bun.lockb`, `package-lock.json`.
+- **Env/config**: `.env`, `.env.example`, `.env.local` (keys only, never values); root `*.config.{ts,js}`.
 
-Search the project root and subdirectories for the following files and patterns. Use Glob and Read tools — do not guess.
+## 2. Read in full
 
-**Languages & runtimes**
-- `package.json` → Node.js / JavaScript / TypeScript
-- `tsconfig.json` → TypeScript
-- `requirements.txt`, `pyproject.toml`, `setup.py`, `Pipfile` → Python
-- `Cargo.toml` → Rust
-- `go.mod` → Go
-- `pom.xml`, `build.gradle`, `build.gradle.kts` → Java / Kotlin
-- `*.csproj`, `*.sln` → C# / .NET
-- `Gemfile` → Ruby
-- `composer.json` → PHP
-- `pubspec.yaml` → Dart / Flutter
+`package.json`, `tsconfig.json`, `prisma/schema.prisma` or `drizzle.config.*`, `README.md` (first 80 lines), `.env.example` (keys only).
 
-**Frameworks**
-- In `package.json` dependencies/devDependencies: look for `next`, `react`, `vue`, `svelte`, `angular`, `express`, `fastify`, `hono`, `remix`, `astro`, `nuxt`, `gatsby`
-- In Python files: look for `django`, `flask`, `fastapi`, `sqlalchemy`
-- In `Cargo.toml`: look for `axum`, `actix-web`, `rocket`
-- In `go.mod`: look for `gin`, `echo`, `fiber`
+## 3. Classify
 
-**Databases & ORMs**
-- In dependency files: look for `prisma`, `drizzle-orm`, `typeorm`, `sequelize`, `mongoose`, `pg`, `mysql2`, `sqlite3`, `redis`, `supabase`, `@planetscale`, `@neon`
-- Config files: `prisma/schema.prisma`, `drizzle.config.*`
+One or more of: `web-app`, `api`, `fullstack`, `cli`, `library`, `mobile`, `monorepo`, `infrastructure`.
 
-**Styling**
-- `tailwind.config.*` → Tailwind CSS
-- In `package.json`: `styled-components`, `@emotion`, `sass`, `less`, `@mui`, `@chakra-ui`, `@radix-ui`, `shadcn`
+## 4. Write `AGENTS.md`
 
-**Build tools & bundlers**
-- `vite.config.*` → Vite
-- `webpack.config.*` → Webpack
-- `turbo.json` → Turborepo
-- `nx.json` → Nx
-- `rollup.config.*` → Rollup
-- `.swcrc` → SWC
-
-**Testing**
-- In `package.json`: `jest`, `vitest`, `@testing-library`, `playwright`, `cypress`, `mocha`
-- `pytest.ini`, `conftest.py` → pytest
-- `jest.config.*`, `vitest.config.*`
-
-**Infrastructure & deployment**
-- `Dockerfile`, `docker-compose.*` → Docker
-- `.github/workflows/` → GitHub Actions
-- `vercel.json`, `.vercel/` → Vercel
-- `netlify.toml` → Netlify
-- `fly.toml` → Fly.io
-- `terraform/`, `*.tf` → Terraform
-- `kubernetes/`, `k8s/`, `*.yaml` with `kind: Deployment` → Kubernetes
-
-**Monorepo**
-- `pnpm-workspace.yaml` → pnpm workspaces
-- `turbo.json` → Turborepo
-- `nx.json` → Nx
-- `lerna.json` → Lerna
-- `packages/`, `apps/` directories → likely monorepo
-
-**Package manager**
-- `pnpm-lock.yaml` → pnpm
-- `yarn.lock` → Yarn
-- `bun.lockb` → Bun
-- `package-lock.json` → npm
-
-**Environment & config**
-- `.env`, `.env.example`, `.env.local` → environment variables (list keys only, never values)
-- `*.config.ts`, `*.config.js` at root
-
-### 2. Read key files in full
-
-After identifying which files exist, read:
-- `package.json` (full)
-- `tsconfig.json` (full)
-- `prisma/schema.prisma` or `drizzle.config.*` if present
-- `README.md` if present (first 80 lines)
-- `.env.example` if present (keys only)
-
-### 3. Infer project type
-
-Based on findings, classify the project as one or more of:
-- `web-app` (frontend UI)
-- `api` (backend/REST/GraphQL)
-- `fullstack` (frontend + backend in same repo)
-- `cli` (command-line tool)
-- `library` (npm/pip/cargo package)
-- `mobile` (React Native, Flutter, Expo)
-- `monorepo` (multiple apps/packages)
-- `infrastructure` (IaC, DevOps-only)
-
-### 4. Generate AGENTS.md
-
-Write `AGENTS.md` at the project root with the following structure. Be specific — list actual package versions from dependency files, not guesses. If something is uncertain, omit it rather than guess.
+Use actual versions from dependency files; omit anything uncertain.
 
 ```markdown
 # Project Context
@@ -135,18 +64,15 @@ Write `AGENTS.md` at the project root with the following structure. Be specific 
 <!-- e.g., Vercel (frontend), Docker (API) -->
 
 ## Project Structure
-<!-- Brief description of top-level directories and their purpose -->
+<!-- Top-level directories and their purpose -->
 
 ## Environment Variables
-<!-- List .env keys (no values) and what they're for if inferable -->
+<!-- .env keys (no values) and purpose if inferable -->
 
 ## Development Commands
-<!-- Extract from package.json scripts or README -->
+<!-- From package.json scripts or README -->
 ```
 
-### 5. Confirm to the user
+## 5. Report
 
-After writing `AGENTS.md`, report:
-- What stack was detected
-- Where the file was written
-- Any ambiguities or gaps that could not be determined automatically
+Detected stack, file location, and gaps that could not be determined.

@@ -9,47 +9,22 @@ disable-model-invocation: true
 
 # create-issue
 
-**Role:** Senior Issue Triager and Developer Assistant.  
-**Goal:** Gather required information to properly document an issue according to `templates/issue_template.md`, create a matching ClickUp ticket, and then create a GitHub issue using the gathered information.
+Gather what `templates/issue_template.md` needs, confirm it, create a ClickUp task, then a linked GitHub issue. Be conversational: one or a few grouped questions at a time.
 
----
+## Step 1 — Context
 
-## Mindset
+Use `--title` / `--description` from `$ARGUMENTS` if present (acknowledge briefly). Otherwise `AskUserQuestion`, header "Create Issue": "What issue or bug are you reporting? Please provide a brief summary or title to start."
 
-Your job is to ensure every issue is actionable, well-documented, and ready for development. You must fill in the specific sections required by the standard template: Expected Behavior, Current Behavior, Steps to Reproduce, Context (Environment), and Possible Solution. Ensure the user provides clear reproduction steps. Be helpful and conversational. Ask one or a few grouped questions at a time. Do not overwhelm the user.
+## Step 2 — Fill the template
 
----
+Ask, in grouped `AskUserQuestion` calls, only for what's missing:
+1. **Expected Behavior**
+2. **Current Behavior**
+3. **Steps to Reproduce** — insist on unambiguous steps.
+4. **Context (Environment)** — impact, goal, OS/browser/version.
+5. **Possible Solution** (optional).
 
-## Step 1 — Get the Initial Context
-
-Parse `$ARGUMENTS` for `--title "<text>"` or `--description "<text>"`.
-
-**If context is provided:** acknowledge it briefly and proceed to Step 2.
-
-**If no context is provided:** use `AskUserQuestion` with:
-- Header: "Create Issue"
-- Question: "What issue or bug are you reporting? Please provide a brief summary or title to start."
-
----
-
-## Step 2 — Clarification & Template Filling (Phase 1)
-
-Analyze the information you have. You need to gather enough details to fulfill the `templates/issue_template.md` format. 
-Ask questions to fill in the missing sections:
-
-1. **Expected Behavior** — What should happen?
-2. **Current Behavior** — What happens instead?
-3. **Steps to Reproduce** — An unambiguous set of steps to reproduce this bug.
-4. **Context (Environment)** — How has this issue affected the user? What are they trying to accomplish? (e.g., OS, browser, version).
-5. **Possible Solution** (Optional) — Suggest a fix/reason for the bug.
-
-Ask these questions over logically grouped `AskUserQuestion` calls. Focus heavily on getting unambiguous "Steps to Reproduce".
-
----
-
-## Step 3 — Synthesize & Confirm
-
-Synthesize the gathered information into the following markdown block format (matching `issue_template.md`):
+## Step 3 — Confirm
 
 ```markdown
 # [Issue Title]
@@ -63,7 +38,6 @@ Synthesize the gathered information into the following markdown block format (ma
 ## Steps to Reproduce
 1. <step 1>
 2. <step 2>
-3. ...
 
 ## Context (Environment)
 <description>
@@ -72,63 +46,23 @@ Synthesize the gathered information into the following markdown block format (ma
 <description>
 ```
 
-Present the synthesized template to the user and ask:
-> "Does this capture the issue correctly? Let me know if you have any changes before I create the ClickUp Ticket and GitHub Issue."
+Ask: "Does this capture the issue correctly? Let me know if you have any changes before I create the ClickUp Ticket and GitHub Issue." Apply changes first.
 
-Incorporate any requested changes before proceeding.
+## Step 4 — ClickUp
 
----
+1. Unless the list is already known: `mcp__clickup__clickup_get_workspace_hierarchy`, present spaces/lists, `AskUserQuestion`: "Which list should I create this ClickUp task in?"
+2. `mcp__clickup__clickup_create_task { list_id: "<selected list id>", name: "<Issue Title>", description: "<full issue spec in markdown>" }`
+3. Keep the task `url`.
 
-## Step 4 — Create in ClickUp
+## Step 5 — GitHub
 
-Once the issue spec is confirmed, create it in ClickUp.
-
-1. Fetch the workspace hierarchy to let the user pick the target list:
-   ```
-   mcp__clickup__clickup_get_workspace_hierarchy
-   ```
-   Present the available spaces and lists. Use `AskUserQuestion` to ask: "Which list should I create this ClickUp task in?" (Skip if the user previously specified the list, or if it is already known).
-
-2. Create the task with:
-   ```
-   mcp__clickup__clickup_create_task {
-     list_id: "<selected list id>",
-     name: "<Issue Title>",
-     description: "<full issue spec in markdown>"
-   }
-   ```
-
-3. Extract from the response the ClickUp Task `url`.
-
----
-
-## Step 5 — Create in GitHub
-
-After the ClickUp task is created, create the corresponding GitHub Issue.
-
-1. Determine the GitHub repository owner and name by running:
-   ```bash
-   git remote get-url origin
-   ```
-   Extract `OWNER` and `REPO` from the URL (e.g., `git@github.com:OWNER/REPO.git` or `https://github.com/OWNER/REPO.git`).
-
-2. Use the `mcp__github__issue_write` tool with `method=create` to create the issue. Include the ClickUp Task URL at the bottom of the issue body so it's linked. 
-   ```
-   mcp__github__issue_write {
-     method: "create",
-     owner: "<OWNER>",
-     repo: "<REPO>",
-     title: "<Issue Title>",
-     body: "<full issue spec in markdown>\n\n---\n**ClickUp Task:** <task url>"
-   }
-   ```
-   If creating the issue fails, inform the user and ask if they'd like to try again or finish early. Extract the GitHub Issue URL from a success response.
-
----
+1. `git remote get-url origin` → extract `OWNER`/`REPO` (SSH or HTTPS form).
+2. `mcp__github__issue_write { method: "create", owner: "<OWNER>", repo: "<REPO>", title: "<Issue Title>", body: "<full issue spec in markdown>\n\n---\n**ClickUp Task:** <task url>" }`
+3. On failure, tell the user and ask whether to retry or finish. On success keep the issue URL.
 
 ## Step 6 — Finalize
 
-Output the result in this exact format:
+Output exactly:
 
 ```markdown
 ✅ Issue successfully created!

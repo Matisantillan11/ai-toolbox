@@ -8,28 +8,11 @@ effort: high
 
 # security-auditor
 
-**Role:** Senior Application Security Engineer.  
-**Goal:** Identify merge-blocking security risks in the current branch before a Pull Request is opened or approved.
+**Role:** Senior application security engineer. Find merge-blocking security risks on the current branch before a PR is opened or approved.
 
----
+Usage: `/security-auditor --base-branch <branch>` (e.g. `main`, `develop`, `origin/main`) audits only files changed vs that base; with no argument, ask for the base.
 
-## Usage
-
-**With a base branch** — audits only the files changed between your current branch and the specified base:
-```
-/security-auditor --base-branch main
-/security-auditor --base-branch develop
-/security-auditor --base-branch origin/main
-```
-
-**Without arguments** — resolve the base branch interactively:
-```
-/security-auditor
-```
-
----
-
-## Step 1 — Resolve Base Branch
+## Step 1 — Base branch
 
 Current branch: `!git branch --show-current`
 
@@ -38,121 +21,38 @@ Available local branches:
 !git branch
 ```
 
-If `$ARGUMENTS` contains `--base-branch`, extract the next value and store it as `BASE_BRANCH`.
+If `$ARGUMENTS` has `--base-branch <value>`, `BASE_BRANCH` = value. Otherwise `AskUserQuestion` (header "Base branch", question "Which branch should be used as the base for this security audit?", options from local branches, preferring `main`, `master`, `develop` when present).
 
-Otherwise, ask the user:
-- Question: "Which branch should be used as the base for this security audit?"
-- Header: "Base branch"
-- Options: build from local branches, always preferring `main`, `master`, and `develop` when present.
+## Step 2 — Scope
 
----
+Run `git diff <BASE_BRANCH>...HEAD --name-only` and `git diff <BASE_BRANCH>...HEAD`; audit only those files. If empty: "No changes detected between the current branch and `<BASE_BRANCH>`." and stop.
 
-## Step 2 — Scope the Audit
+## Step 3 — Source review (externally reachable paths first)
 
-Run:
-```bash
-git diff <BASE_BRANCH>...HEAD --name-only
-git diff <BASE_BRANCH>...HEAD
-```
+- **Secrets:** hardcoded keys/tokens/passwords/certs/private keys, including in config, fixtures, snapshots, example env files; sensitive values in logs, exceptions, analytics, client responses.
+- **Input & injection:** missing validation at trust boundaries (HTTP handlers, forms, CLI args, env vars, webhooks, queues, uploads); raw/string-built SQL, unsafe ORM escape hatches, shell command construction; XSS sinks, template injection, path traversal, SSRF, insecure deserialization.
+- **Auth/authz/session:** missing permission checks on new mutations or private data; trusting client-supplied roles, user IDs, tenancy IDs; cookie/token/session/refresh flows lacking secure defaults or leaking credentials.
+- **Data & crypto:** unnecessary PII/regulated data in responses; weak/custom crypto, obfuscation posing as encryption, insecure credential hashing; unredacted secrets in errors, logs, telemetry, debug output.
+- **File/network/infra:** unsafe file handling, permissive uploads, unbounded archive extraction; requests to user-controlled URLs without allowlisting; disabled CSRF/CORS protections, overly broad origins, debug mode in production paths.
 
-Read only the files returned by the changed-file list. Do not audit unrelated files.
+Issues that depend on runtime context and can't be proven from the diff → warning, not error.
 
-If the diff is empty, inform the user:
-> "No changes detected between the current branch and `<BASE_BRANCH>`."
+## Step 4 — Dependency audit
 
-Then stop.
+Run only what matches the repo's tooling (first match per ecosystem):
+- JS/TS: `pnpm-lock.yaml` → `pnpm audit`; `package-lock.json` → `npm audit`; `yarn.lock` → `yarn npm audit`; `bun.lock`/`bun.lockb` → `bun audit`.
+- Python: `poetry.lock` + `poetry audit` available → `poetry audit`; else `requirements*.txt`/`pyproject.toml`/`uv.lock` + `pip-audit` available → `pip-audit`.
+- Ruby: `Gemfile.lock` + `bundle-audit` → `bundle audit`. Rust: `Cargo.lock` + `cargo-audit` → `cargo audit`. Go: `go.mod` + `govulncheck` → `govulncheck ./...`.
 
----
+No available tool → don't fail for that alone; record a warning that automated dependency auditing could not run. If the command fails (deps not installed, tool missing), report that explicitly.
 
-## Step 3 — Source-Level Security Review
+## Step 5 — Severity
 
-Review the changed files for security-sensitive patterns, prioritizing externally reachable code paths first.
+- **Errors (must fix):** exploitable vulnerabilities, missing authorization, hardcoded secrets, injection, sensitive data leaks, blocking dependency vulnerabilities. Any error → recommend blocking PR creation.
+- **Warnings (should fix):** suspicious but unproven patterns, missing dependency tooling, defense-in-depth gaps.
+- **Passed:** concrete safeguards verified in the changed code.
 
-### 3.1 Secrets and Sensitive Data
-
-- Hardcoded API keys, tokens, passwords, certificates, or private keys
-- Secrets committed in config files, fixtures, test snapshots, or example env files
-- Sensitive values written to logs, exceptions, analytics payloads, or client-visible responses
-
-### 3.2 Input Validation and Injection
-
-- Missing validation at trust boundaries: HTTP handlers, forms, CLI args, env vars, webhooks, queues, and file uploads
-- Raw SQL, string-built queries, unsafe ORM escape hatches, or command construction vulnerable to shell injection
-- Unsafe HTML rendering, XSS sinks, template injection, path traversal, SSRF, or insecure deserialization
-
-### 3.3 Auth, Authz, and Session Safety
-
-- Missing permission checks around newly introduced mutations or private data access
-- Trusting client-provided roles, user IDs, or tenancy identifiers without server-side enforcement
-- Cookie, token, session, or refresh flows that omit secure defaults or leak credentials
-
-### 3.4 Data Exposure and Crypto
-
-- Personally identifiable or regulated data returned unnecessarily
-- Weak or custom cryptography, reversible obfuscation presented as encryption, or insecure hashing for credentials
-- Missing redaction for secrets in errors, logs, telemetry, or debug output
-
-### 3.5 File, Network, and Infrastructure Risks
-
-- Unsafe file handling, permissive upload behavior, or unbounded archive extraction
-- Network calls to user-controlled URLs without allowlisting or validation
-- Security-sensitive config regressions: disabled CSRF/CORS protections, overly broad origins, debug mode in production paths
-
-If a potential issue depends on runtime context and cannot be proven from the diff alone, report it as a warning rather than an error.
-
----
-
-## Step 4 — Dependency Audit
-
-Run only the audit commands that match the repository's actual tooling. Prefer the first applicable command in each ecosystem.
-
-### JavaScript / TypeScript
-
-- If `pnpm-lock.yaml` exists: run `pnpm audit`
-- Else if `package-lock.json` exists: run `npm audit`
-- Else if `yarn.lock` exists: run `yarn npm audit`
-- Else if `bun.lock` or `bun.lockb` exists: run `bun audit`
-
-### Python
-
-- If `poetry.lock` exists and `poetry audit` is available: run `poetry audit`
-- Else if `requirements*.txt`, `pyproject.toml`, or `uv.lock` exists and `pip-audit` is available: run `pip-audit`
-
-### Ruby
-
-- If `Gemfile.lock` exists and `bundle-audit` is available: run `bundle audit`
-
-### Rust
-
-- If `Cargo.lock` exists and `cargo-audit` is available: run `cargo audit`
-
-### Go
-
-- If `go.mod` exists and `govulncheck` is available: run `govulncheck ./...`
-
-If no matching dependency audit tool is available in the repo environment:
-- Do not fail the audit for that reason alone
-- Record a warning stating that automated dependency auditing could not be executed
-
-If the audit command itself fails because dependencies are not installed or the tool is missing, report that explicitly.
-
----
-
-## Step 5 — Severity Rules
-
-Classify findings as follows:
-
-- **Errors (must fix):** exploitable vulnerabilities, missing authorization, hardcoded secrets, injection risks, sensitive data leaks, or dependency vulnerabilities that should block review readiness
-- **Warnings (should fix):** suspicious patterns lacking enough context to prove exploitability, missing automated dependency tooling, or defense-in-depth gaps
-- **Passed:** concrete safeguards that were verified in the changed code
-
-If any error exists, recommend blocking PR creation until it is resolved.
-
----
-
-## Step 6 — Report Findings
-
-Output findings in this exact format:
+## Step 6 — Report
 
 ```
 ## Security Audit Results
@@ -173,14 +73,4 @@ Output findings in this exact format:
 ### Recommendation
 Approve / Request Changes — <one-line rationale>
 ```
-
-Order findings from highest impact to lowest impact:
-- auth/authz bypass
-- secret exposure
-- injection and remote execution
-- sensitive data leakage
-- dependency vulnerabilities
-- defense-in-depth gaps
-
-If errors exist, end by asking:
-> "Should I apply the fixes?"
+Order by impact: auth/authz bypass → secret exposure → injection/RCE → sensitive data leakage → dependency vulnerabilities → defense-in-depth gaps. If errors exist, end with "Should I apply the fixes?"

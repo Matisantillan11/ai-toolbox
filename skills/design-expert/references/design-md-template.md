@@ -1,13 +1,8 @@
 # DESIGN.md template
 
-This is the exact shape every `DESIGN.md` must follow. It has two layers:
+Two layers: **YAML front matter** (machine-readable token contract) and a **Markdown body** (why/where, referencing tokens as `{group.key}`, never contradicting front matter).
 
-1. **YAML front matter** — the machine-readable token contract. Agents read values from here.
-2. **Markdown body** — the human/agent-readable rationale. It explains *why* and *where*, always referencing tokens by `{group.key}`, never re-declaring raw values that contradict the front matter.
-
-Replace every `<…>` placeholder. Delete a front-matter key only if the project genuinely has no such token. Never delete a body section — use the "Not yet defined" line instead.
-
----
+Replace every `<…>`. Delete a front-matter key only if the project has no such token. Never delete a body section — use the "Not yet defined" line.
 
 ## Front matter
 
@@ -15,13 +10,11 @@ Replace every `<…>` placeholder. Delete a front-matter key only if the project
 ---
 version: alpha                      # bump to beta/stable once the team signs off
 name: <Project name>
-description: <One dense paragraph: the visual identity in plain words — surface temperature, accent strategy, type pairing, how hierarchy is expressed (tint ladder vs shadows), radius tiers. This paragraph is reused verbatim as the intro of the Storybook Foundations page.>
+description: <One dense paragraph: surface temperature, accent strategy, type pairing, hierarchy (tint ladder vs shadows), radius tiers. Reused verbatim as the Storybook Foundations intro.>
 
 colors:
-  # Value rule:
-  #   - Runtime-themed tokens (CSS variables swapped by dark mode / multi-theme) → "var(--color-<name>)"
-  #   - Static tokens (no runtime swap)                                         → resolved hex, e.g. "#0A0A0A"
-  # Pairs are mandatory: every surface/fill token that carries text gets a <name>-foreground.
+  # Runtime-themed (swapped by dark mode / multi-theme) → "var(--color-<name>)"; static → resolved hex "#0A0A0A".
+  # Every text-bearing surface/fill gets a <name>-foreground.
   background: "<value>"
   foreground: "<value>"
   card: "<value>"
@@ -41,48 +34,20 @@ colors:
   ring: "<value>"
 
 typography:
-  # Named by ROLE, not by size. One entry per role actually used in the UI.
-  heading-1:
-    fontFamily: "<family>"
-    fontSize: <px>
-    fontWeight: <100-900>
-    lineHeight: <unitless>
-    letterSpacing: "<em>"            # omit when default
-  title:
-    fontFamily: "<family>"
-    fontSize: <px>
-    fontWeight: <weight>
-    lineHeight: <unitless>
-  label:
-    fontFamily: "<family>"
-    fontSize: <px>
-    fontWeight: <weight>
-    lineHeight: <unitless>
-  body:
-    fontFamily: "<family>"
-    fontSize: <px>
-    fontWeight: <weight>
-    lineHeight: <unitless>
-  caption:
-    fontFamily: "<family>"
-    fontSize: <px>
-    fontWeight: <weight>
-    lineHeight: <unitless>
+  # Named by ROLE; one entry per role used. letterSpacing omitted when default.
+  heading-1: { fontFamily: "<family>", fontSize: <px>, fontWeight: <100-900>, lineHeight: <unitless>, letterSpacing: "<em>" }
+  title:     { fontFamily: "<family>", fontSize: <px>, fontWeight: <weight>, lineHeight: <unitless> }
+  label:     { fontFamily: "<family>", fontSize: <px>, fontWeight: <weight>, lineHeight: <unitless> }
+  body:      { fontFamily: "<family>", fontSize: <px>, fontWeight: <weight>, lineHeight: <unitless> }
+  caption:   { fontFamily: "<family>", fontSize: <px>, fontWeight: <weight>, lineHeight: <unitless> }
 
-rounded:
-  none: 0px
-  sm: <px>
-  md: <px>
-  lg: <px>
-  xl: <px>
-  2xl: <px>
-  full: 9999px
+rounded: { none: 0px, sm: <px>, md: <px>, lg: <px>, xl: <px>, 2xl: <px>, full: 9999px }
 
 spacing:
-  unit: <px>                         # base step of the spacing scale (Tailwind default = 4px)
+  unit: <px>                         # base step (Tailwind default = 4px)
 
 components:
-  # Only components whose styling was CONFIRMED in source. Values reference tokens with {group.key}.
+  # Only components CONFIRMED in source; values reference {group.key}.
   button-primary:
     backgroundColor: "{colors.primary}"
     textColor: "{colors.primary-foreground}"
@@ -95,23 +60,21 @@ components:
 ---
 ```
 
----
-
 ## Body
 
-Section order is fixed. Headings are exact.
+Section order and headings are exact.
 
 ```markdown
 ## Overview
 
-<2–4 short paragraphs: surface temperature, accent strategy, type pairing, radius tiers, elevation strategy. Every color/radius mention is written as `{colors.x}` — `var(--color-x)` (token + resolved/CSS reference) the first time it appears.>
+<2–4 short paragraphs: surface temperature, accent strategy, type pairing, radius tiers, elevation. First mention of each color/radius: `{colors.x}` — `var(--color-x)`.>
 
 **Key Characteristics:**
 
-- <The single most identifiable trait of the palette>
-- <Accent strategy — how many accents, what they are for>
+- <Most identifiable palette trait>
+- <Accent strategy>
 - <Type pairing>
-- <Radius tiers — e.g. cards softer than buttons>
+- <Radius tiers>
 - <Elevation strategy — tint ladder, shadow ladder, or both>
 - <Semantic coverage — which status colors exist and which do NOT>
 
@@ -119,7 +82,7 @@ Section order is fixed. Headings are exact.
 
 ### Brand
 
-- **Primary** (`{colors.primary}` — `<value>`): <role, where it is used>
+- **Primary** (`{colors.primary}` — `<value>`): <role, where used>
 - **Primary Foreground** (`{colors.primary-foreground}` — `<value>`): <role>
 
 ### Surface
@@ -137,78 +100,78 @@ Section order is fixed. Headings are exact.
 ### Semantic
 
 - **Destructive** (`{colors.destructive}` — `<value>`): <role>
-- <success / warning / info — or state explicitly: "No confirmed warning/success/info colors.">
+- <success / warning / info — or "No confirmed warning/success/info colors.">
 
 ### Dark mode
 
 - **Strategy:** <class (`.dark` on `<html>`) | media | data-attribute | none>
-- **Mechanism:** <e.g. "`:root` holds light values, `.dark` overrides the same variables; toggled by next-themes">
+- **Mechanism:** <e.g. "`:root` light values, `.dark` overrides; toggled by next-themes">
 
 ## Typography
 
 ### Font Family
 
-- **<Heading family>** — headings and UI labels. Loaded via <next/font | Google Fonts link | @fontsource | @font-face>, weights <range>.
+- **<Heading family>** — headings and UI labels. Loaded via <next/font | Google Fonts | @fontsource | @font-face>, weights <range>.
 - **<Body family>** — body copy and fallback. Weights <range>.
 
 ### Hierarchy
 
-| Role                     | Family   | Size | Weight | Line height | Letter spacing | Use            |
-| ------------------------ | -------- | ---- | ------ | ----------- | -------------- | -------------- |
-| `{typography.heading-1}` | <family> | <px> | <w>    | <lh>        | <ls>           | <where>        |
-| `{typography.title}`     | …        | …    | …      | …           | —              | …              |
-| `{typography.label}`     | …        | …    | …      | …           | —              | …              |
-| `{typography.body}`      | …        | …    | …      | …           | —              | …              |
-| `{typography.caption}`   | …        | …    | …      | …           | —              | …              |
+| Role | Family | Size | Weight | Line height | Letter spacing | Use |
+| --- | --- | --- | --- | --- | --- | --- |
+| `{typography.heading-1}` | <family> | <px> | <w> | <lh> | <ls> | <where> |
+| `{typography.title}` | … | … | … | … | — | … |
+| `{typography.label}` | … | … | … | … | — | … |
+| `{typography.body}` | … | … | … | … | — | … |
+| `{typography.caption}` | … | … | … | … | — | … |
 
 ### Principles
 
-- <e.g. "Headings and UI chrome always use the heading family; never set body copy in it.">
+- <e.g. "Headings and UI chrome always use the heading family.">
 
 ## Layout
 
 ### Spacing System
 
-<Base unit `{spacing.unit}` and how the scale is applied; note any confirmed recurring paddings, e.g. `p-6`, `px-8 py-7`.>
+<`{spacing.unit}` and how the scale is applied; confirmed recurring paddings.>
 
 ### Grid & Container
 
-<Max container width(s), gutters, grid columns — with the actual class/value.>
+<Max width(s), gutters, columns — actual class/value.>
 
 ### Responsive Strategy
 
 | Breakpoint | Min-width | Notes |
-| ---------- | --------- | ----- |
-| sm         | <px>      |       |
-| md         | <px>      |       |
-| lg         | <px>      |       |
-| xl         | <px>      |       |
-| 2xl        | <px>      |       |
+| --- | --- | --- |
+| sm | <px> | |
+| md | <px> | |
+| lg | <px> | |
+| xl | <px> | |
+| 2xl | <px> | |
 
 ## Elevation & Depth
 
-| Level        | Token / class | Use                                  |
-| ------------ | ------------- | ------------------------------------ |
-| Resting      | `shadow-sm`   | <e.g. resting cards>                 |
-| Hover        | `shadow-md`   | <e.g. hovered tiles>                 |
-| Floating     | `shadow-lg`   | <e.g. popovers>                      |
-| Overlay      | `shadow-2xl`  | <e.g. modals>                        |
+| Level | Token / class | Use |
+| --- | --- | --- |
+| Resting | `shadow-sm` | <resting cards> |
+| Hover | `shadow-md` | <hovered tiles> |
+| Floating | `shadow-lg` | <popovers> |
+| Overlay | `shadow-2xl` | <modals> |
 
-<One paragraph: when to use the tint ladder vs a shadow. If the system is shadow-free, say so and drop the table.>
+<One paragraph: tint ladder vs shadow. Shadow-free → say so and drop the table.>
 
 ## Shapes
 
 ### Border Radius Scale
 
-Ordered by usage frequency in source (most used first):
+Ordered by usage frequency (most used first):
 
-| Token            | Value  | Use                         |
-| ---------------- | ------ | --------------------------- |
-| `{rounded.full}` | 9999px | <pills, avatars, …>         |
-| `{rounded.2xl}`  | <px>   | <cards, modals, …>          |
-| `{rounded.md}`   | <px>   | <buttons, inputs, …>        |
+| Token | Value | Use |
+| --- | --- | --- |
+| `{rounded.full}` | 9999px | <pills, avatars> |
+| `{rounded.2xl}` | <px> | <cards, modals> |
+| `{rounded.md}` | <px> | <buttons, inputs> |
 
-<One line on any deliberate radius tiering.>
+<One line on deliberate radius tiering.>
 
 ## Components
 
@@ -217,8 +180,8 @@ Ordered by usage frequency in source (most used first):
 **`<component-token>`**
 
 - Fill `{colors.x}`, label `{colors.y}`, shape `{rounded.z}`
-- Confirmed variants: <class strings / sizes found in source>
-- States: <hover / focus / disabled behaviour found in source>
+- Confirmed variants: <class strings / sizes>
+- States: <hover / focus / disabled>
 
 ### Other components
 

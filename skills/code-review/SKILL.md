@@ -8,34 +8,11 @@ effort: high
 
 # code-review
 
-Two-phase code review skill. Phase 1 catches surface-level issues fast. Phase 2 audits structural correctness using SOLID as the primary framework and KISS/DRY/YAGNI for implementation quality.
+Phase 1: fast surface checks. Phase 2: structural audit (SOLID, KISS/DRY/YAGNI). Be thorough over fast.
 
-## Usage
+Usage: `/code-review --base-branch <branch>` (e.g. `main`, `develop`, `origin/main`) reviews only files changed vs that base; with no argument, ask for the base. Stack-aware checks use the project instructions — if neither `AGENTS.md` nor `CLAUDE.md` exists (and no `PROJECT_CONTEXT`), suggest running `/init-project` first.
 
-**With a base branch** — reviews only the files changed between your current branch and the specified base:
-```
-/code-review --base-branch main
-/code-review --base-branch develop
-/code-review --base-branch origin/main
-```
-
-**Without arguments** — Claude will detect your local branches and ask you to pick the base interactively:
-```
-/code-review
-```
-You'll be prompted with a question like:
-> "Which branch should be used as the base for this review?"
-> Options: `main`, `master`, `develop`, or any other local branch detected. Select one or type a custom name.
-
-> **Tip:** Run `/init-project` first if the project has neither `AGENTS.md` nor `CLAUDE.md`. The review uses the project instructions for stack-aware checks in Phase 1.
-
----
-
-> **Mindset**: There is no reward for speed. The reward comes from persistence on resolving issues to a high standard. Consistent iteration produces better outcomes than fast completion.
-
----
-
-## Setup — Resolve Base Branch
+## Setup — Resolve base branch
 
 Current branch: `!git branch --show-current`
 
@@ -44,124 +21,35 @@ Available local branches:
 !git branch
 ```
 
-**Step 1 — Parse the argument.**
-Check if `$ARGUMENTS` contains `--base-branch`. If it does, extract the value that follows it and use that as `BASE_BRANCH`. Skip to Step 3.
+1. If `$ARGUMENTS` contains `--base-branch <value>`, `BASE_BRANCH` = value; go to 3.
+2. Otherwise `AskUserQuestion` (header "Base branch", question "Which branch should be used as the base for this review?"). Options from the branch list: always `main` plus local branches, max 4 (3 most relevant + "Other" for free input if more). If only the default exists, use it without asking.
+3. Review only files from `git diff <BASE_BRANCH>...HEAD --name-only`. If empty: "No changes detected between the current branch and `<BASE_BRANCH>`." and stop.
 
-**Step 2 — Ask the user (only if `--base-branch` was not provided).**
-Use `AskUserQuestion` with the following question:
+## Phase 1 — Fast pre-commit check
 
-- Question: "Which branch should be used as the base for this review?"
-- Header: "Base branch"
-- Build the options from the branch list above. Always include the most common default (`main`) plus any branches found locally. Cap at 4 options; if there are more, include the 3 most relevant and leave "Other" for free input. If there is no more options but default, just use the default.
+- **Spec & logic:** matches requirements exactly (no more, no less); edge cases (empty, null/undefined, error boundaries); no `console.log`, commented-out code, or TODO without ticket.
+- **Types & validation:** no unjustified `any`/`unknown` casts; external input (API responses, form data, env vars) validated at the boundary; types from a single source of truth.
+- **Stack alignment:** per project instructions (use `PROJECT_CONTEXT` if the caller passed it; otherwise read `AGENTS.md` at the project root, or `CLAUDE.md` if `AGENTS.md` does not exist) — framework patterns (server/client components, lifecycle, routing), styling approach, data-access layer patterns.
+- **Verification:** existing tests pass; new behavior has unit/integration coverage; observable evidence it works (test output, screenshot, logs).
+- **Security:** no hardcoded secrets; no sensitive data in logs/errors; input validation prevents injection; dependencies up to date.
+- **Performance:** no N+1 or unnecessary DB queries, API calls, or computation.
 
-**Step 3 — Scope the review to changed files.**
-Run:
-```
-git diff <BASE_BRANCH>...HEAD --name-only
-```
-Read only the files returned by that command. Do not review files that were not changed relative to `BASE_BRANCH`.
+Any failure → fix and re-run Phase 1 before Phase 2.
 
-If the diff is empty, inform the user: "No changes detected between the current branch and `<BASE_BRANCH>`." and stop.
+## Phase 2 — Structural audit
 
----
+| Gate | Fail signals | Action on fail |
+|---|---|---|
+| 1 SRP | God objects mixing UI/state/I/O; nesting >2 levels; side effects in "pure" functions; functions well over ~20 lines | Decompose into single-purpose, independently testable units |
+| 2 OCP/LSP | `if/else`/`switch` chains that grow per type; subclasses throwing "Not Implemented" | Strategy pattern / polymorphism; extend via composition |
+| 3 ISP/DIP | Fat interfaces forcing stubs; `new SpecificClass()` in constructors; third-party SDKs coupled into business logic | Dependency injection; split interfaces; wrap third-party deps behind an owned abstraction |
+| 4 KISS/DRY/YAGNI | Duplicated logic; speculative over-engineering; magic numbers; single-use abstractions more complex than what they replace; abbreviated names (`ptr`, `tmp`, `idx`); related code not colocated | Inline needless abstractions; named constants; prefer duplication over a premature abstraction |
 
-## Phase 1 — Fast Pre-Commit Check
-
-Catch the 80% of issues before going deeper. Run this first.
-
-### 1.1 Spec & Logic
-
-- [ ] Code exactly matches the stated requirements — no more, no less
-- [ ] Edge cases are handled: empty states, null/undefined, error boundaries
-- [ ] No leftover debug artifacts: `console.log`, commented-out code, TODO-without-ticket
-
-### 1.2 Type Safety & Validation
-
-- [ ] No unconstrained `any` / `unknown` casts without justification
-- [ ] External input (API responses, form data, env vars) is validated at the boundary
-- [ ] Types are derived from a single source of truth — not duplicated across files
-
-### 1.3 Stack Alignment
-
-Check the detected stack from the project instructions (use `PROJECT_CONTEXT` if the caller passed it; otherwise read `AGENTS.md` at the project root, or `CLAUDE.md` if `AGENTS.md` does not exist) and verify conventions are followed:
-- Framework-specific patterns are used correctly (e.g., server vs. client components, lifecycle hooks, routing conventions)
-- Styling follows the project's chosen approach consistently
-- ORM/database queries follow the project's data-access layer patterns
-
-### 1.4 Verification
-
-- [ ] Existing tests pass
-- [ ] New behavior has test coverage (unit or integration)
-- [ ] There is observable evidence the change works (test output, screenshot, logs)
-
-
-### 1.5 Security Checks
-
-- [ ] No hardcoded secrets or credentials
-- [ ] No sensitive data in logs or error messages
-- [ ] Input validation prevents injection attacks
-- [ ] Dependencies are up to date
-
-### 1.6 Performance Checks
-
-- [ ] No N+1 queries
-- [ ] No unnecessary database queries
-- [ ] No unnecessary API calls
-- [ ] No unnecessary computations
-
-**Phase 1 outcome:**
-- All items pass → proceed to Phase 2
-- Any item fails → fix and re-run Phase 1 before continuing
-
----
-
-## Phase 2 — Deep SOLID & Structural Audit
-
-### Gate 1: Single Responsibility (SRP)
-
-- **Pass:** Each function/class has one reason to change. Logic is encapsulated by domain. Functions are under ~20 lines.
-- **Fail:** "God objects" that mix UI, state, and I/O logic. Deep nesting (>2 levels). Side effects inside functions advertised as pure.
-- **Action on Fail:** Trigger decomposition — split logic into atomic, single-purpose units. Each extracted piece should be testable in isolation.
-
-### Gate 2: Open/Closed + Liskov Substitution (OCP/LSP)
-
-- **Pass:** New behavior is added by extending, not by modifying existing code. Subtypes are drop-in replacements for their parents without breaking contracts.
-- **Fail:** Large `if/else` or `switch` chains that must grow for each new type. Subclass methods throwing "Not Implemented".
-- **Action on Fail:** Refactor using the Strategy pattern or polymorphism. Close the current abstraction and extend via composition.
-
-### Gate 3: Interface Segregation + Dependency Inversion (ISP/DIP)
-
-- **Pass:** Interfaces are narrow — clients only depend on what they use. High-level modules depend on abstractions, not concrete implementations.
-- **Fail:** "Fat" interfaces where implementors are forced to stub unused methods. Hardcoded `new SpecificClass()` inside constructors. Tight coupling to third-party SDKs in business logic.
-- **Action on Fail:** Introduce dependency injection. Split fat interfaces into focused contracts. Wrap third-party dependencies behind an abstraction layer owned by your code.
-
-### Gate 4: Pragmatic Quality (KISS / DRY / YAGNI)
-
-- **Pass:** Zero duplicated logic. Simplest solution that satisfies the requirement. Intent-revealing names (`isExpired` vs `flag`). Related code is colocated.
-- **Fail:** Over-engineering for hypothetical future requirements. Magic numbers. Single-use abstractions with more complexity than the code they replaced. Abbreviated names (`ptr`, `tmp`, `idx`).
-- **Action on Fail:** Inline over-engineered abstractions. Replace magic numbers with named constants. Choose duplication over a premature abstraction when the abstraction adds net complexity.
-
----
-
-## Phase 2 — Critical Patterns
-
-### Dependency Impact Scan
-
-Before any signature change, identify every file that imports the target.  
-If a signature changes, all dependent files **must** be updated in the same change. Never leave broken imports or type errors downstream.
-
-### Structural Integrity
-
-- Check for unreachable code and dead exports
-- Check for circular dependencies
-- Verify files are in the correct location per the project's structure (reference the project instructions)
-- Run the project's lint and type-check commands. Block completion if they fail.
-
----
+Critical patterns:
+- **Dependency impact:** before any signature change, find every importer; update all dependents in the same change — no broken imports or downstream type errors.
+- **Structural integrity:** unreachable code, dead exports, circular dependencies, file location per project structure. Run the project's lint and type-check commands; block completion if they fail.
 
 ## Reporting
-
-After completing both phases, report findings in this format:
 
 ```
 ## Code Review Results
@@ -179,6 +67,4 @@ After completing both phases, report findings in this format:
 Approve / Request Changes — <one-line rationale>
 ```
 
-- If errors exist: report them and ask "Should I apply the fixes?"
-- After applying fixes: re-run the relevant phase to verify resolution
-- If the codebase has neither `AGENTS.md` nor `CLAUDE.md`, suggest running `/init-project` first for better stack-aware review
+If errors exist, ask "Should I apply the fixes?"; after fixing, re-run the relevant phase.

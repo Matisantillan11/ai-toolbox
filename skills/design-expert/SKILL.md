@@ -7,104 +7,76 @@ effort: medium
 
 # design-expert
 
-**Role:** Senior design systems engineer.
-**Goal:** Produce a `DESIGN.md` that an AI agent can follow to write UI that is indistinguishable from the existing product — every value confirmed in source, every rule tied to a token.
+Produce a `DESIGN.md` an agent can follow to write UI indistinguishable from the product. Format is fixed by [`references/design-md-template.md`](references/design-md-template.md) — read it before Step 4; no alternative structures.
 
-The output format is fixed: [`references/design-md-template.md`](references/design-md-template.md). Read it before Step 4. Do not invent alternative structures.
+## Rules
 
----
-
-## Non-negotiable rules
-
-1. **Confirmed or absent.** Every value written to `DESIGN.md` must be traceable to a file you read. No defaults from memory, no "typical" values. If a value is not in source, the key is omitted (front matter) or marked `_Not yet defined_` (body).
-2. **Extrapolation is labeled.** If a value is derived (e.g. a size inferred from two confirmed neighbours), append `(extrapolated)` in the body and keep it out of the front matter.
-3. **Front matter is the contract; the body explains it.** Body prose references tokens as `{colors.primary}`, `{rounded.md}`, `{typography.body}`. A raw value may appear next to its token for readability (`{colors.primary}` — `var(--color-primary)`), never instead of it, and never contradicting it.
-4. **Tokens are named by role, not appearance.** `primary`, `muted-foreground`, `heading-1`, `caption` — never `black`, `gray-500`, `text-60`.
-5. **Foreground pairs are mandatory.** Every fill/surface token that carries text has a `<name>-foreground` pair, or the body states why not.
-6. **Say what does not exist.** Absence is information: "No confirmed warning/success/info colors", "Shadow-free system", "No dark mode". Agents otherwise invent it.
-7. **Imperative voice.** Do's and Don'ts are commands tied to tokens. No "consider", "try to", "you may want to".
-
----
+1. **Confirmed or absent.** Every value traces to a file you read. Not in source → omit the key (front matter) or write `_Not yet defined_` (body).
+2. **Label extrapolation.** Derived values get `(extrapolated)` in the body and stay out of front matter.
+3. **Front matter is the contract.** Body references tokens as `{colors.primary}`, `{rounded.md}`, `{typography.body}`; a raw value may sit beside its token, never replace or contradict it.
+4. **Role names, not appearance:** `primary`, `muted-foreground`, `heading-1` — never `black`, `gray-500`.
+5. **Foreground pairs:** every text-bearing fill/surface has `<name>-foreground`, or the body says why not.
+6. **State absences** ("No confirmed warning/success/info colors", "Shadow-free system", "No dark mode").
+7. **Imperative Do's and Don'ts** tied to tokens; no "consider"/"try to".
 
 ## Step 1 — Context
 
-1. Load project instructions: `PROJECT_CONTEXT` if the caller passed it; otherwise `AGENTS.md` at the root, else `CLAUDE.md`. Note the styling approach and component library.
-2. If `DESIGN.md` exists, read it fully and keep it as `EXISTING_DESIGN_MD`. The full scan still runs — the existing file is only used in Step 4 to detect drift and preserve hand-written context.
-3. If a Storybook foundations page exists (`stories/foundations.mdx`, `**/*oundations*.mdx`, `**/*okens*.mdx`), read it — it must mirror `DESIGN.md` and you will report drift in Step 5.
-
----
+1. Project instructions: `PROJECT_CONTEXT` if passed; else `AGENTS.md`, else `CLAUDE.md`. Note styling approach and component library.
+2. If `DESIGN.md` exists, read it fully as `EXISTING_DESIGN_MD` (used only in Step 4 for drift and hand-written context; the full scan still runs).
+3. Read any Storybook foundations page (`stories/foundations.mdx`, `**/*oundations*.mdx`, `**/*okens*.mdx`) for drift reporting in Step 5.
 
 ## Step 2 — Discovery
 
-Locate sources in this priority order. **Higher rows win on conflict.**
+Higher priority wins on conflict.
 
-| Priority | Source                     | Globs / signals                                                                                                                               |
-| -------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1        | Runtime theme tokens       | `app/globals.css`, `**/globals.css`, `**/theme.css`, `**/variables.css`, `:root {`, `.dark {`, `[data-theme`, `@theme`                        |
-| 2        | Theme config               | `tailwind.config.*`, `theme.{ts,js}`, `tokens.{ts,js,json}`, `*.tokens.json`, `style-dictionary.config.*`, `createTheme(`, `definePreset(`   |
-| 3        | Component source           | `components/ui/**`, `src/components/ui/**`, `lib/ui/**` — variant maps (`cva(`, `*-variants.constants.*`), class strings                      |
-| 4        | Font loading               | `next/font` in layouts, `fonts.googleapis.com` links, `@fontsource/*`, `@font-face`                                                           |
-| 5        | Brand assets               | `public/brand/**`, `app/icon.*`, `public/logo*`                                                                                               |
-| 6        | Existing docs              | `DESIGN.md`, `FOUNDATIONS.md`, `*.mdx` under `stories/`, `docs/design/**`                                                                     |
+| # | Source | Globs / signals |
+| --- | --- | --- |
+| 1 | Runtime theme tokens | `app/globals.css`, `**/globals.css`, `**/theme.css`, `**/variables.css`, `:root {`, `.dark {`, `[data-theme`, `@theme` |
+| 2 | Theme config | `tailwind.config.*`, `theme.{ts,js}`, `tokens.{ts,js,json}`, `*.tokens.json`, `style-dictionary.config.*`, `createTheme(`, `definePreset(` |
+| 3 | Component source | `components/ui/**`, `src/components/ui/**`, `lib/ui/**` — `cva(`, `*-variants.constants.*`, class strings |
+| 4 | Font loading | `next/font`, `fonts.googleapis.com`, `@fontsource/*`, `@font-face` |
+| 5 | Brand assets | `public/brand/**`, `app/icon.*`, `public/logo*` |
+| 6 | Existing docs | `DESIGN.md`, `FOUNDATIONS.md`, `stories/**/*.mdx`, `docs/design/**` |
 
-Also record from `package.json` (or equivalent): component/headless library (`@radix-ui/*`, `@mui/*`, `@headlessui/*`, `vuetify`, …), variant tooling (`class-variance-authority`, `tailwind-merge`, `clsx`), icon library (`lucide-*`, `@heroicons/*`, …), theming (`next-themes`, …), Tailwind major version (v4 = CSS-first `@theme`, no config file required).
-
-If the project uses a non-web stack (React Native, Swift, Kotlin), map the same categories to its theme objects — the output format does not change.
-
----
+From `package.json` record: component/headless library (`@radix-ui/*`, `@mui/*`, `@headlessui/*`, `vuetify`…), variant tooling (`class-variance-authority`, `tailwind-merge`, `clsx`), icons (`lucide-*`, `@heroicons/*`…), theming (`next-themes`…), Tailwind major (v4 = CSS-first `@theme`). Non-web stacks (React Native, Swift, Kotlin): map the same categories to their theme objects; output format unchanged.
 
 ## Step 3 — Extraction
 
-Read every file found. Extract into a working table `TOKEN | VALUE | SOURCE_FILE:LINE`. A row without a source is dropped.
-
-- **Colors** — every semantic variable and its light/dark values. Decide the value style once for the whole file: `var(--color-*)` if tokens swap at runtime (dark mode / multi-theme), resolved hex otherwise.
-- **Typography** — families + loaded weight ranges; derive *roles* from usage: find the classes on `h1`/hero headings, card titles, labels/buttons, body paragraphs, captions/tooltips. Record size, weight, line-height, tracking per role.
-- **Radius** — every radius token; count usages (`Grep -c "rounded-<key>"`) to order the scale by frequency and to assign each tier its real use (cards vs buttons vs pills).
-- **Spacing** — base unit; recurring paddings on cards/buttons (e.g. `p-6`, `px-8 py-3`).
-- **Elevation** — every `shadow-*` usage grouped by surface type (resting, hover, floating, overlay). If none, the system is shadow-free.
-- **Layout** — container max-width, gutters, breakpoints (custom or framework default — say which).
-- **Components** — for each UI primitive with confirmed styling (button, card, input, tooltip, badge, dialog, …): fill, text, border, radius, padding, variants, states. These feed both `components:` in front matter and `## Components` in the body.
-- **Dark mode** — strategy and mechanism.
-- **Brand** — logo files and their variants; quote the canonical SVG if it is small and authoritative.
-
----
+Read every file found; build `TOKEN | VALUE | SOURCE_FILE:LINE` (drop rows without a source).
+- **Colors**: every semantic variable, light/dark values. One value style for the file: `var(--color-*)` if tokens swap at runtime, else resolved hex.
+- **Typography**: families + loaded weights; derive roles from usage (hero/`h1`, card titles, labels/buttons, body, captions/tooltips) with size, weight, line-height, tracking.
+- **Radius**: every token; order by usage count (`Grep -c "rounded-<key>"`) and assign each tier its real use.
+- **Spacing**: base unit; recurring card/button paddings.
+- **Elevation**: `shadow-*` usages by surface (resting, hover, floating, overlay); none → shadow-free.
+- **Layout**: container max-width, gutters, breakpoints (custom or framework default — say which).
+- **Components**: each primitive with confirmed styling — fill, text, border, radius, padding, variants, states (feeds `components:` and `## Components`).
+- **Dark mode**: strategy and mechanism.
+- **Brand**: logo files/variants; quote the canonical SVG if small and authoritative.
 
 ## Step 4 — Write `DESIGN.md`
 
-Follow [`references/design-md-template.md`](references/design-md-template.md) exactly: front matter keys, body section order, heading names.
+Follow the template exactly (front matter keys, section order, headings).
 
-### New file
+- **New file**: fill every section; `_Not yet defined_` for unconfirmed subsections — never drop a section.
+- **Existing file**: classify each difference, then overwrite the whole file (never old and new structure side by side):
 
-Fill every section from the extraction table. Write `_Not yet defined_` for body subsections with no confirmed data — never drop a section.
+| Class | Action |
+| --- | --- |
+| Stale | Source disagrees → use source value |
+| Missing | Template section/key absent → add |
+| Incomplete | Placeholder but source now has data → populate |
+| New | Source data never covered → add |
+| Hand-written | Rationale not derivable from source → preserve verbatim |
+| Off-format | Valid content in non-template structure → migrate |
 
-### Existing file → reconcile, then overwrite
-
-Classify every difference between `EXISTING_DESIGN_MD` and the extraction table:
-
-| Class      | Action                                                                                     |
-| ---------- | ------------------------------------------------------------------------------------------ |
-| Stale      | Source disagrees with the doc → replace with source value                                  |
-| Missing    | Template section/key absent → add                                                          |
-| Incomplete | Section is placeholder-only but source now has data → populate                            |
-| New        | Source has data the doc never covered → add                                                |
-| Hand-written | Rationale or rules not derivable from source (brand intent, product decisions) → preserve verbatim |
-| Off-format | Content valid but in a non-template structure (e.g. old `# Design System` tables) → migrate into the template shape |
-
-Then write the full file. Never leave the old and new structure side by side.
-
-### Validation gate — run before reporting
-
-Re-read the written file and check every item. Fix and re-check until all pass:
-
-- [ ] Front matter parses as YAML and contains `version`, `name`, `description`, `colors`, `typography`, `rounded`, `spacing`.
-- [ ] Every `{group.key}` reference in front matter `components:` and in the body resolves to a front-matter key.
-- [ ] Body sections appear in this order: Overview, Colors, Typography, Layout, Elevation & Depth, Shapes, Components, Do's and Don'ts.
-- [ ] Every non-`foreground`/`border`/`input`/`ring` color has a `-foreground` pair or an explicit note.
-- [ ] No raw value in the body contradicts the front matter.
-- [ ] Do's and Don'ts each have ≥ 3 imperative bullets, each naming at least one token.
-- [ ] No sentence uses "probably", "likely", "seems", "might", "typically".
-
----
+**Validation gate** — re-read the file; fix and re-check until all pass:
+- Front matter parses as YAML with `version`, `name`, `description`, `colors`, `typography`, `rounded`, `spacing`.
+- Every `{group.key}` in `components:` and the body resolves to a front-matter key.
+- Body order: Overview, Colors, Typography, Layout, Elevation & Depth, Shapes, Components, Do's and Don'ts.
+- Every color except `foreground`/`border`/`input`/`ring` has a `-foreground` pair or a note.
+- No body raw value contradicts front matter.
+- Do's and Don'ts each ≥ 3 imperative bullets naming ≥ 1 token.
+- No "probably", "likely", "seems", "might", "typically".
 
 ## Step 5 — Report
 
@@ -131,4 +103,4 @@ Re-read the written file and check every item. Fix and re-check until all pass:
 - <"stories/foundations.mdx matches DESIGN.md" | list of values that differ — DESIGN.md is the source of truth; run /design-system-docs to fix the page>
 ```
 
-If no project instructions existed, add one line: `Run /init-project to give future scans stack context.`
+If no project instructions existed, add: `Run /init-project to give future scans stack context.`

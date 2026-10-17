@@ -8,130 +8,37 @@ effort: medium
 
 # verify-task
 
-**Role:** QA Engineer and Code Auditor.  
-**Goal:** Given a completed implementation and its SDD, confirm that all automated quality checks pass, every SDD system-level acceptance criterion is met, and the code meets structural quality standards — producing a pass/fail verdict with full evidence.
+**Role:** QA engineer and final gate before a PR. Find gaps, never fill them: read-only, report every failing check and unmet criterion so `implement-task-agent` can fix them.
 
----
+## Step 1 — Load context
 
-## Mindset
+Parse `$ARGUMENTS` for `--branch`, `--base-branch`, `--ticket-id`, `--diff-scope`.
 
-You are the final gate before code reaches a Pull Request. Find gaps, do not fill them. Report every failing check and unmet criterion clearly so `implement-task-agent` can address them. Never modify files. If verification passes on all dimensions, signal PASS immediately.
+- **SDD:** passed directly by the caller. If missing or without a non-empty **System-Level Acceptance Criteria** section, stop: "SDD is missing or has no System-Level Acceptance Criteria. Cannot verify."
+- **Ticket:** if `--ticket-id`, `mcp__clickup__clickup_get_task { task_id: "<ticket-id>" }` for the task and all subtasks; parse each subtask's **Acceptance criteria** section (8-section template).
+- **Commands** (lint, type check, test runner, test file pattern): from `PROJECT_CONTEXT` if the caller passed it; otherwise read `AGENTS.md` at the project root, or `CLAUDE.md` if `AGENTS.md` does not exist. If undefined, infer from `package.json`, `Makefile`, `pyproject.toml`, etc. and note the inference in the report.
+- `VERIFICATION_BRANCH` = `--branch`; `BASE_BRANCH` = `--base-branch`, else first remote of `main` → `master` → `develop`.
 
----
+## Step 2 — Automated checks
 
-## Step 1 — Load Context
+`CHANGED_FILES` = `git diff --name-only <BASE_BRANCH>...<VERIFICATION_BRANCH>`.
 
-Parse `$ARGUMENTS` for `--branch`, `--base-branch`, `--ticket-id`, and `--diff-scope`.
+**If `--diff-scope working_tree`:** the work is intentionally uncommitted; `CHANGED_FILES` = union of `git diff --name-only HEAD` and `git ls-files --others --exclude-standard`. Never stage files to inspect them; read diffs with `git diff HEAD -- <file>` and untracked files in full.
 
-**SDD:** The SDD is passed directly by the caller as a structured input — not fetched from a file. It must contain a **System-Level Acceptance Criteria** section. If it is missing or empty, stop and report:
-> "SDD is missing or has no System-Level Acceptance Criteria. Cannot verify."
+Run every check even if an earlier one fails; on FAIL record details and continue.
+- **2a Lint:** `<lint command> <changed files>`. Record each error as `file:line — message`.
+- **2b Type check:** `<type check command>`. Record every error.
+- **2c Tests:** `<test command> <affected test pattern>` (match `CHANGED_FILES` to the project's test naming). If `CHANGED_FILES` includes `*.stories.*` and the project has a Storybook Vitest project (`storybook` project in `vitest.config.*` or a `test:storybook` script), also run it (e.g. `<pm> test:storybook` or `<pm> vitest run --project=storybook`) — this runs `play` tests and a11y addon checks; an unrun story is unverified. Record failing test names and output.
 
-**Ticket details:** If `--ticket-id` is provided, fetch the task and all subtasks via:
-```
-mcp__clickup__clickup_get_task { task_id: "<ticket-id>" }
-```
-Parse each subtask's **Acceptance criteria** section from the 8-section template.
+## Step 3 — Code review
 
-**Project instructions:** take verification commands (lint, type check, test runner, test file pattern) from the project instructions: use `PROJECT_CONTEXT` if the caller passed it; otherwise read `AGENTS.md` at the project root, or `CLAUDE.md` if `AGENTS.md` does not exist.
+Run the full `code-review` skill with `--base-branch <BASE_BRANCH>`. **If `--diff-scope working_tree`:** review `CHANGED_FILES` instead — `git diff HEAD -- <file>` for modified, full content for untracked; never stage or commit to make them visible. Do not apply fixes. Classify each finding ❌ **Error** (blocks PASS) or ⚠️ **Warning** (deferred).
 
-**Set `VERIFICATION_BRANCH`** to `--branch`.  
-**Set `BASE_BRANCH`** to `--base-branch`. If omitted, infer from remote: `main` → `master` → `develop`.
+## Step 4 — Acceptance criteria
 
----
+For each SDD **System-Level Acceptance Criteria** item (4a) and each fetched subtask's **Acceptance criteria** (4b), locate the code (Grep/Glob/Read) and classify: ✅ **Met** (cite file/line — required), ⚠️ **Partial** (note what is missing), ❌ **Not Met**.
 
-## Step 2 — Automated Checks
-
-Identify files changed on `VERIFICATION_BRANCH` relative to `BASE_BRANCH`:
-
-```bash
-git diff --name-only <BASE_BRANCH>...<VERIFICATION_BRANCH>
-```
-
-**If `--diff-scope working_tree`:** the work is uncommitted on purpose. Everything uncommitted is in scope — modified and untracked files alike:
-
-```bash
-git diff --name-only HEAD
-git ls-files --others --exclude-standard
-```
-
-Use the union. Never stage files to inspect them. Read diffs with `git diff HEAD -- <file>`; read untracked files in full.
-
-Store as `CHANGED_FILES`.
-
-### 2a — Lint
-
-Run the lint command from the project instructions against `CHANGED_FILES`:
-
-```bash
-<lint command> <changed files>
-```
-
-- PASS: command exits 0
-- FAIL: record every error with `file:line — message`; mark 2a as FAIL and continue
-
-### 2b — Type Check
-
-Run the type check command from the project instructions:
-
-```bash
-<type check command>
-```
-
-- PASS: exits 0
-- FAIL: record every type error; mark 2b as FAIL and continue
-
-### 2c — Tests
-
-Identify affected test files by matching `CHANGED_FILES` against the test file naming conventions from the project instructions. Run:
-
-```bash
-<test command> <affected test pattern>
-```
-
-**Storybook stories:** if `CHANGED_FILES` contains `*.stories.*` files and the project has a Storybook Vitest project (a `storybook` project in `vitest.config.*`, or a `test:storybook` script), also run it — e.g. `<pm> test:storybook` or `<pm> vitest run --project=storybook`. This is what executes `play` interaction tests and the a11y addon checks; a story file that is never run is not verified.
-
-- PASS: all tests pass
-- FAIL: record failing test names and output; mark 2c as FAIL and continue
-
-> If there are no project instructions, or they do not define the commands, infer commands from `package.json`, `Makefile`, `pyproject.toml`, etc., and note the inference in the report.
-
----
-
-## Step 3 — Code Review
-
-Run the full `code-review` skill scoped to the diff between `VERIFICATION_BRANCH` and `BASE_BRANCH`:
-
-- Pass `--base-branch <BASE_BRANCH>`
-
-**If `--diff-scope working_tree`:** the branch-vs-base diff is empty or unrelated, because nothing is committed. Run the `code-review` skill against `CHANGED_FILES` instead: review `git diff HEAD -- <file>` for modified files and the full content of untracked files. Never stage or commit to make them visible.
-
-Collect all findings. Classify each as:
-- ❌ **Error** — blocks PASS verdict
-- ⚠️ **Warning** — note for deferred resolution
-
-Do not apply fixes. Record all findings as-is.
-
----
-
-## Step 4 — Acceptance Criteria Verification
-
-### 4a — SDD System-Level Criteria
-
-For each criterion in the SDD **System-Level Acceptance Criteria** section, determine whether it is satisfied by reading the relevant code:
-
-1. Locate the relevant files via Grep/Glob/Read
-2. Classify:
-   - ✅ **Met** — evidence found in the implementation
-   - ⚠️ **Partial** — partially addressed; note what is missing
-   - ❌ **Not Met** — no evidence found or explicitly contradicted
-
-### 4b — Subtask Acceptance Criteria
-
-If subtasks were fetched in Step 1, verify each subtask's **Acceptance criteria** section using the same classification.
-
----
-
-## Step 5 — Produce Verification Report
+## Step 5 — Report
 
 ```
 ## Verification Report
@@ -139,8 +46,6 @@ If subtasks were fetched in Step 1, verify each subtask's **Acceptance criteria*
 **Branch:** <VERIFICATION_BRANCH>
 **Base:** <BASE_BRANCH> | **Diff scope:** working tree (uncommitted + untracked vs HEAD)
 **Verdict:** ✅ PASS | ❌ FAIL
-
----
 
 ### Automated Checks
 
@@ -152,58 +57,29 @@ If subtasks were fetched in Step 1, verify each subtask's **Acceptance criteria*
 
 <errors per check, if any>
 
----
-
 ### Code Review Findings
-
-<"No issues found." if clean>
-<List each finding as ❌ Error or ⚠️ Warning with file:line reference>
-
----
+<"No issues found." or each ❌ Error / ⚠️ Warning with file:line>
 
 ### SDD System-Level Acceptance Criteria
-
 - ✅ / ⚠️ / ❌  <criterion text> — <evidence or gap note>
 
----
-
 ### Subtask Acceptance Criteria
-
 #### Subtask 1 — <name>
 - ✅ / ⚠️ / ❌  <criterion>
 
-(repeat for each subtask)
-
----
-
 ### Blocking Issues
-
-<Numbered list of all ❌ items that must be resolved before a PR can be opened.>
-<"None — ready for PR." if no blockers.>
-
----
+<Numbered ❌ items to resolve before a PR, or "None — ready for PR.">
 
 ### Deferred Warnings
-
-<Numbered list of ⚠️ items with justification for deferring.>
-<"None." if clean.>
+<Numbered ⚠️ items with justification, or "None.">
 ```
+(Show the **Diff scope** part only for working tree runs.)
 
-**Verdict rule:**  
-PASS if and only if:
-- Steps 2a, 2b, 2c all PASS, and
-- No ❌ Error findings from code-review, and
-- No ❌ Not Met criteria in 4a or 4b
+**Verdict:** PASS iff 2a, 2b, 2c all pass, no ❌ code-review Error, and no ❌ Not Met in 4a/4b. Any single ❌ = FAIL.
 
-Any single ❌ anywhere = FAIL verdict.
+## Step 6 — Return
 
----
-
-## Step 6 — Return Verdict
-
-### PASS
-
-Return to caller:
+PASS (signals the PR can be opened):
 ```yaml
 verification_status: pass
 branch: <VERIFICATION_BRANCH>
@@ -211,11 +87,7 @@ base_branch: <BASE_BRANCH>
 report: <full report from Step 5>
 ```
 
-Signal that the PR can be opened.
-
-### FAIL
-
-Return to caller:
+FAIL (orchestrator routes `blocking_issues` back to `implement-task-agent`):
 ```yaml
 verification_status: fail
 branch: <VERIFICATION_BRANCH>
@@ -223,13 +95,7 @@ blocking_issues: <numbered list from "Blocking Issues" section>
 report: <full report from Step 5>
 ```
 
-Do **not** open the PR. The caller (orchestrator) routes `blocking_issues` back to `implement-task-agent`.
-
----
-
 ## Constraints
 
-- Never create, edit, or delete any file. This skill is read-only except for running shell commands.
-- Never open a PR. The orchestrator handles PR creation after receiving `verification_status: pass`.
-- Run all checks even if a prior check fails — produce a complete report every time.
-- Do not mark a criterion as ✅ Met without citing a specific file or line as evidence.
+- Never create, edit, or delete files; only run shell commands.
+- Never open a PR — the orchestrator does after `verification_status: pass`.

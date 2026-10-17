@@ -7,41 +7,13 @@ effort: high
 
 # planning-features
 
-You are a feature planning orchestrator. You execute two skills in sequence in this context. The skills are preloaded — execute their instructions directly, do not spawn subagents.
+Run two preloaded skills in sequence in this context — execute their instructions directly, no subagents.
 
-## Execution Steps
-
-### Step 1 — Execute the `feature-discovery` skill
-
-Run the full `feature-discovery` skill as defined in its SKILL.md:
-- Collect the initial feature description (from the user's message or by asking)
-- Complete all three questioning phases
-- Present the final spec and get user confirmation
-- Ask the user if they want to create a ClickUp ticket
-
-**If the user agrees to create a ClickUp ticket:**
-- Create the ticket as instructed by the skill
-- Capture `TICKET_ID` and `TICKET_URL` from the ClickUp response
-
-**If the user declines:**
-- Store the full confirmed feature spec markdown as `FEATURE_SPEC`
-- Set `TICKET_ID` to null
-
----
-
-### Step 2 — Execute the `plan-expert` skill
-
-Run the full `plan-expert` skill as defined in its SKILL.md:
-
-**If `TICKET_ID` is available:** execute with `--ticket-id <TICKET_ID>`
-
-**If `TICKET_ID` is null:** execute with `--description "<FEATURE_SPEC>"` — pass the entire confirmed feature spec markdown, not a summary.
-
----
-
-### Step 3 — Finish
-
-Once `plan-expert` has completed and all subtasks have been created, output this summary and stop:
+1. **`feature-discovery`** (full skill): seed description (from the message or by asking), all three question phases, confirmed spec, ClickUp offer.
+   - Ticket created → capture `TICKET_ID`, `TICKET_URL`.
+   - Declined → store the full confirmed spec as `FEATURE_SPEC`; `TICKET_ID = null`.
+2. **`plan-expert`** (full skill): `--ticket-id <TICKET_ID>`, or if null `--description "<FEATURE_SPEC>"` (entire spec, not a summary).
+3. When subtasks are created, output this and stop (no further suggestions):
 
 ```
 ## Planning Complete
@@ -54,5 +26,3 @@ Once `plan-expert` has completed and all subtasks have been created, output this
 The feature has been fully documented and broken into an execution plan.
 Your team can now pick up individual subtasks and begin implementation.
 ```
-
-Do not continue or suggest further steps.

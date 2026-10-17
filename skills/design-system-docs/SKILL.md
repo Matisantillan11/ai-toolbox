@@ -7,111 +7,79 @@ effort: medium
 
 # design-system-docs
 
-**Role:** Design systems engineer specialised in Storybook and component testing.
-**Goal:** Measure the project against one fixed target — [`references/storybook-baseline.md`](references/storybook-baseline.md) — and output either a gap report (Storybook present) or a setup plan (Storybook absent). Every finding names a file, the expected state, and the fix.
+Measure the project against [`references/storybook-baseline.md`](references/storybook-baseline.md) (read it before Step 3; it is the only definition of "correct") and output a gap report (Storybook present) or a setup plan (absent).
 
-Read the baseline reference before Step 3. It is the only definition of "correct" this skill uses.
+## Rules
 
----
-
-## Non-negotiable rules
-
-1. **Compare, don't opine.** A finding exists only when the project differs from the baseline. No generic best-practice advice.
-2. **Every finding is file-level:** `<path>` — current → expected — fix. Findings without a path are dropped.
-3. **Read before judging.** Every story file is read in full; configs are read, not inferred from `package.json`.
-4. **Commands use the detected package manager** (`pnpm-lock.yaml` → pnpm, `bun.lock*` → bun, `yarn.lock` → yarn, `package-lock.json` → npm).
-5. **No hedging.** Severity is assigned by the table in A6, not by feel.
-
----
+1. A finding exists only where the project differs from the baseline — no generic advice.
+2. Every finding: `<path>` — current → expected — fix. Drop findings without a path.
+3. Read every story file in full; read configs, don't infer from `package.json`.
+4. Commands use the detected package manager (`pnpm-lock.yaml` → pnpm, `bun.lock*` → bun, `yarn.lock` → yarn, `package-lock.json` → npm).
+5. Severity comes only from the A9 table.
 
 ## Step 1 — Context
 
-1. Load project instructions: `PROJECT_CONTEXT` if passed; otherwise `AGENTS.md`, else `CLAUDE.md`. Note framework, styling, package manager, path alias.
-2. Read `DESIGN.md` if it exists. Record whether it follows the canonical format (YAML front matter with `colors`/`typography`/`rounded`/`spacing`, body sections Overview → Do's and Don'ts). If missing or off-format, the report's first critical finding is: `Run /design-expert`.
+1. Project instructions: `PROJECT_CONTEXT` if passed; else `AGENTS.md`, else `CLAUDE.md`. Note framework, styling, package manager, path alias.
+2. Read `DESIGN.md` if present; check canonical format (YAML front matter with `colors`/`typography`/`rounded`/`spacing`; body Overview → Do's and Don'ts). Missing/off-format → first critical finding: `Run /design-expert`.
 
 ## Step 2 — Detect
 
-Storybook is present if any of: `.storybook/` exists, a `storybook` or `@storybook/*` dependency exists, or `**/*.stories.{ts,tsx,js,jsx,mdx,vue,svelte}` matches.
+Storybook present if `.storybook/` exists, a `storybook`/`@storybook/*` dependency exists, or `**/*.stories.{ts,tsx,js,jsx,mdx,vue,svelte}` matches. Present → Section A; absent → Section B. In both, glob design Markdown (`DESIGN.md`, `FOUNDATIONS.md`, `docs/design/**`, `stories/**/*.mdx`) for context.
 
-- Present → **Section A**.
-- Absent → **Section B**.
+# Section A — Audit
 
-Also glob design Markdown (`DESIGN.md`, `FOUNDATIONS.md`, `docs/design/**`, `stories/**/*.mdx`) — used as context in both sections.
+Record each check ✅/❌ with its file path.
 
----
+**A1 — Dependencies (`package.json`)**
+- `storybook` major 10 (9 → upgrade; ≤ 8 → critical upgrade).
+- Framework package matches the stack (B1). `@storybook/nextjs` (webpack) on Next.js → recommend `@storybook/nextjs-vite`.
+- Present: `@storybook/addon-docs`, `@storybook/addon-a11y`, `@storybook/addon-vitest`, `eslint-plugin-storybook` (enabled); for visual regression `@chromatic-com/storybook` + `chromatic` with `CHROMATIC_PROJECT_TOKEN` in CI.
+- Nothing from the baseline §1 deprecated table.
 
-# Section A — Audit against the baseline
+**A2 — Scripts**: `storybook`, `build-storybook`, `test:storybook` exist; `test` runs the storybook Vitest project; `chromatic` if Chromatic installed.
 
-Run every check. Record each as ✅ / ❌ with the file path.
+**A3 — `.storybook/main.*`**
+- `stories` globs cover every co-located `*.stories.*` location and `stories/**/*.mdx`.
+- If `_pocs/` exists: `_pocs/**/*.mdx` and `_pocs/**/*.stories.@(ts|tsx)` included (baseline §3, §10).
+- `addons`: docs, a11y, vitest (+ chromatic if installed), nothing deprecated.
+- `framework` is the framework package; `staticDirs` → public assets; `core.disableTelemetry: true`.
 
-## A1 — Dependencies (`package.json`)
+**A4 — `.storybook/preview.*`**
+- Imports the app's global stylesheet (tokens + fonts).
+- Global `tags: ["autodocs"]`; `controls.matchers` for color/date.
+- `options.storySort.order` starts with `"Foundations"`, then component groups; `"POCs"` last when `_pocs/` exists.
+- Global decorators only wrap providers every story needs; dark mode toggle iff `DESIGN.md` declares dark mode.
 
-- [ ] `storybook` major is 10 (9 → upgrade, ≤ 8 → critical upgrade).
-- [ ] Framework package matches the stack (see B1 table). `@storybook/nextjs` (webpack) on a Next.js project → recommend `@storybook/nextjs-vite`.
-- [ ] Present: `@storybook/addon-docs`, `@storybook/addon-a11y`, `@storybook/addon-vitest`.
-- [ ] Present if visual regression is wanted: `@chromatic-com/storybook` + `chromatic`; `CHROMATIC_PROJECT_TOKEN` referenced in CI.
-- [ ] `eslint-plugin-storybook` installed and enabled.
-- [ ] No deprecated package from baseline §1 table.
+**A5 — Testing**
+- `vitest.config.*` has a `storybook` project with `storybookTest({ configDir })`, browser mode (Playwright, chromium, headless).
+- Separate jsdom project whose setup file imports `@testing-library/jest-dom/vitest`.
+- `vitest.shims.d.ts` references browser provider types.
+- If Bash is permitted and deps installed, run `<pm> test:storybook`; record failures verbatim.
 
-## A2 — Scripts
+**A6 — Coverage**: glob UI components (`components/ui/**/*.component.*` or the project equivalent; for two-layer components count only `<name>.component.*`, not `-core`), pair with `*.stories.*` and `*.spec.*` by folder. A component lacking a co-located story **and** spec is a gap.
 
-- [ ] `storybook`, `build-storybook`, `test:storybook` exist; `test` runs the storybook Vitest project.
-- [ ] `chromatic` exists if Chromatic is installed.
+**A7 — Story quality**: check every story file against the 11 rules in baseline §7; `_pocs/` stories also against §10 (title, pattern description). Record failures per file.
 
-## A3 — `.storybook/main.*`
+**A8 — Foundations page**
+- Global MDX (`stories/foundations.mdx` or equivalent) with `<Meta title="Foundations" />`.
+- Renders colors (`ColorPalette`/`ColorItem` grouped Brand/Surface/Text/Semantic), typography roles, radius, elevation, Do's and Don'ts.
+- Every value matches `DESIGN.md` front matter; list each mismatch.
+- Includes the "Design system vs POCs" note when `_pocs/` exists.
 
-- [ ] `stories` globs cover every co-located `*.stories.*` location and `stories/**/*.mdx`.
-- [ ] If `_pocs/` exists: `_pocs/**/*.mdx` and `_pocs/**/*.stories.@(ts|tsx)` are in `stories` (baseline §3, §10).
-- [ ] `addons` registers docs, a11y, vitest (and chromatic if installed) — and nothing deprecated.
-- [ ] `framework` is the framework package; `staticDirs` points at the public assets dir; `core.disableTelemetry: true`.
+**A8b — POC isolation (only if `_pocs/` exists)**
+- Nothing outside `_pocs/` imports it: `grep -rnE "from ['\"][^'\"]*_pocs/" --include='*.ts' --include='*.tsx' --include='*.mdx' . | grep -v "^./_pocs/" | grep -v node_modules` is empty.
+- Every POC story title starts with `POCs/`; no `UI/` story under `_pocs/`.
+- `DESIGN.md` `## Components` documents no POC.
 
-## A4 — `.storybook/preview.*`
+**A9 — Severity**
 
-- [ ] Imports the same global stylesheet the app uses (tokens + fonts render identically).
-- [ ] `tags: ["autodocs"]` set globally.
-- [ ] `controls.matchers` for color/date.
-- [ ] `options.storySort.order` starts with `"Foundations"`, then component groups; `"POCs"` is last when `_pocs/` exists.
-- [ ] Global decorators only wrap providers every story needs; dark mode toggle present iff `DESIGN.md` declares dark mode.
-
-## A5 — Testing integration
-
-- [ ] `vitest.config.*` defines a `storybook` project using `storybookTest({ configDir })` with browser mode (Playwright, chromium, headless).
-- [ ] A separate jsdom project with a setup file importing `@testing-library/jest-dom/vitest`.
-- [ ] `vitest.shims.d.ts` references the browser provider types.
-- [ ] Running `<pm> test:storybook` (if Bash is permitted and deps are installed) passes. Record failures verbatim.
-
-## A6 — Coverage
-
-1. Glob UI components (`components/ui/**/*.component.*`, or the project's equivalent from `AGENTS.md`). For two-layer components, count only the smart layer (`<name>.component.*`, not `<name>-core.component.*`).
-2. Glob `*.stories.*` and `*.spec.*` and pair them by folder.
-3. Every UI component without a co-located story **and** spec is a gap.
-
-## A7 — Story quality (read every story file)
-
-Check each file against the 11 rules in baseline §7. Record failures per file. For stories under `_pocs/`, also check baseline §10 (title, pattern description).
-
-## A8 — Foundations page
-
-- [ ] A global MDX page (`stories/foundations.mdx` or equivalent) with `<Meta title="Foundations" />` exists.
-- [ ] It renders colors (`ColorPalette`/`ColorItem` grouped Brand/Surface/Text/Semantic), typography roles, radius, elevation, Do's and Don'ts.
-- [ ] Every value matches `DESIGN.md` front matter. List each mismatch.
-- [ ] It includes the "Design system vs POCs" note when `_pocs/` exists.
-
-## A8b — POC isolation (only when `_pocs/` exists)
-
-- [ ] No file outside `_pocs/` imports from it: `grep -rnE "from ['\"][^'\"]*_pocs/" --include='*.ts' --include='*.tsx' --include='*.mdx' . | grep -v "^./_pocs/" | grep -v node_modules` returns nothing.
-- [ ] Every POC story title starts with `POCs/`; no `UI/` story lives under `_pocs/`.
-- [ ] `DESIGN.md` `## Components` does not document any POC.
-
-## A9 — Severity
-
-| Severity   | Condition                                                                                                                                    |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Severity | Condition |
+| --- | --- |
 | ❌ Critical | Storybook ≤ 8 · wrong/deprecated framework package · global CSS not imported · no addon-vitest/test integration · `DESIGN.md` missing/off-format · core primitive (Button, Input, Select, Dialog, Tooltip, Card, Badge) without a story · code outside `_pocs/` imports from `_pocs/` |
-| ⚠️ High     | Missing addon-a11y or addon-docs · deprecated addon present · no Foundations page or Foundations drift · interactive component without a `play` test · multi-axis component without `AllVariants` · UI component without a spec · `_pocs/` exists but is missing from story globs or storySort · POC story not titled `POCs/` |
-| 💡 Medium   | Missing JSDoc on stories · missing `docs.description.component` · callbacks not `fn()` · storySort not pinned · no Chromatic                   |
+| ⚠️ High | Missing addon-a11y or addon-docs · deprecated addon present · no Foundations page or Foundations drift · interactive component without a `play` test · multi-axis component without `AllVariants` · UI component without a spec · `_pocs/` missing from story globs or storySort · POC story not titled `POCs/` |
+| 💡 Medium | Missing JSDoc on stories · missing `docs.description.component` · callbacks not `fn()` · storySort not pinned · no Chromatic |
 
-## A10 — Report
+**A10 — Report**
 
 ```
 ## Storybook Audit
@@ -140,38 +108,20 @@ Check each file against the 11 rules in baseline §7. Record failures per file. 
 
 ### Next steps (in order)
 1. <highest-severity fix>
-2. …
 ```
 
----
+# Section B — Setup plan
 
-# Section B — Setup plan to the baseline
+**B1 — Framework package**: Next.js → `@storybook/nextjs-vite` · React + Vite → `@storybook/react-vite` · Vue 3 + Vite → `@storybook/vue3-vite` · Nuxt → `@storybook-vue/nuxt` · SvelteKit → `@storybook/sveltekit` · Svelte + Vite → `@storybook/svelte-vite` · Angular → `@storybook/angular` · React Native (web preview) → `@storybook/react-native-web-vite` · Web components / plain → `@storybook/web-components-vite`, `@storybook/html-vite`.
 
-## B1 — Resolve the framework package
+Non-Vite frameworks (Angular, webpack) can't use `addon-vitest` — substitute `@storybook/test-runner` and say so.
 
-| Stack                      | Framework package                     |
-| -------------------------- | ------------------------------------- |
-| Next.js                    | `@storybook/nextjs-vite`              |
-| React + Vite               | `@storybook/react-vite`               |
-| Vue 3 + Vite               | `@storybook/vue3-vite`                |
-| Nuxt                       | `@storybook-vue/nuxt`                 |
-| SvelteKit                  | `@storybook/sveltekit`                |
-| Svelte + Vite              | `@storybook/svelte-vite`              |
-| Angular                    | `@storybook/angular`                  |
-| React Native (web preview) | `@storybook/react-native-web-vite`    |
-| Web components / plain     | `@storybook/web-components-vite`, `@storybook/html-vite` |
+**B2 — Inventory**
+- Classify UI components: core primitives (Button, Input, Select, Checkbox, Dialog, Tooltip, Badge, Card), composites, layout/navigation.
+- Read 3 representative components: variant axes (`cva` keys), states, controlled props, portals, required providers.
+- Note jsdom gaps (cmdk → `ResizeObserver`, `scrollIntoView`; Radix Select → pointer capture).
 
-Non-Vite frameworks (Angular, webpack builds) cannot use `addon-vitest` — substitute `@storybook/test-runner` and say so in the plan.
-
-## B2 — Inventory
-
-- List UI components and classify: core primitives (Button, Input, Select, Checkbox, Dialog, Tooltip, Badge, Card), composites, layout/navigation.
-- Read 3 representative components: note variant axes (`cva` keys), states, controlled props, portals, required providers.
-- Note jsdom gaps the headless library will hit (cmdk → `ResizeObserver`, `scrollIntoView`; Radix Select → pointer capture).
-
-## B3 — Output the plan
-
-Every step is a concrete command or file with its final content (taken from the baseline, adapted to the detected framework, stylesheet path, alias and public dir).
+**B3 — Plan.** Every step is a concrete command or a file with final content (baseline adapted to framework, stylesheet path, alias, public dir).
 
 ```
 ## Storybook Setup Plan
@@ -211,6 +161,4 @@ Every step is a concrete command or file with its final content (taken from the 
 - Rule for contributors: a UI component PR without a co-located story and spec is not mergeable.
 ```
 
-## B4 — Summary
-
-End with: docs that exist today (good / partial / missing per area), the first phase to execute, and — if DESIGN.md is missing or off-format — `Run /design-expert before Phase 3.`
+**B4 — Summary**: docs that exist today (good / partial / missing per area), the first phase to execute, and — if DESIGN.md is missing/off-format — `Run /design-expert before Phase 3.`

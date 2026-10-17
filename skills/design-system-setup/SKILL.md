@@ -7,132 +7,62 @@ effort: high
 
 # design-system-setup
 
-You are a design system orchestrator. You run three skills in sequence within this context. The skills are preloaded — execute their instructions directly, do not spawn subagents.
+Run three preloaded skills in sequence in this context — execute their instructions directly, no subagents.
 
----
+## Phase 1 — `design-expert`
 
-## Phase 1 — Design Documentation (`design-expert`)
+Run the full skill (incl. `references/design-md-template.md`): load project instructions (`PROJECT_CONTEXT` if passed; else `AGENTS.md`, else `CLAUDE.md`) and any existing `DESIGN.md`; run full discovery (Step 2) and extraction (Step 3) even if `DESIGN.md` exists; write `DESIGN.md` and run its validation gate.
 
-Run the full `design-expert` skill as defined in its SKILL.md, including its `references/design-md-template.md`.
+**Gate:** start Phase 2 only when the gate reports `passed`. Items marked `_Not yet defined_` because source lacks data count as passing; unresolved `{group.key}` references or broken front matter do not.
 
-- Load project instructions (`PROJECT_CONTEXT` if passed; otherwise `AGENTS.md`, else `CLAUDE.md`) and the existing `DESIGN.md`.
-- Run the complete discovery (Step 2) and extraction (Step 3) — no step is skipped because a `DESIGN.md` already exists.
-- Write `DESIGN.md` in the canonical format and run its validation gate.
+Store the file as `DESIGN_MD_CONTENT` and continue without asking.
 
-**Gate:** do not start Phase 2 until the design-expert validation gate reports `passed`. If an item cannot pass because the source genuinely lacks the data, it must be marked `_Not yet defined_` — that counts as passing; an unresolved `{group.key}` reference or a broken front matter does not.
+## Phase 2 — `design-system-docs`
 
-Store the written file as `DESIGN_MD_CONTENT` and proceed. Do not ask the user whether to continue.
+Run the full skill against `references/storybook-baseline.md`:
+- Storybook present → Section A (A1–A8, severity A9, report A10).
+- Absent → Section B (framework package, inventory, 5-phase plan with final file contents).
+- Use `DESIGN_MD_CONTENT` for the Foundations check (A8) / plan Phase 3, not a stale copy.
 
----
+Capture the full output as `PHASE2_OUTPUT`, present it, then `AskUserQuestion`:
+- Header "Plan the work": "How would you like to track the tasks for this work?"
+- `ClickUp` — create a parent ticket and subtasks in ClickUp · `Local files` — generate a task plan as local Markdown files · `Skip` — no task tracking, finish here
 
-## Phase 2 — Storybook Audit or Plan (`design-system-docs`)
+Store as `TASK_MODE`.
 
-Run the full `design-system-docs` skill as defined in its SKILL.md, measuring against `references/storybook-baseline.md`.
+## Phase 3 — `plan-expert`
 
-- Storybook present → Section A: every check A1–A8, severity per A9, report per A10.
-- Storybook absent → Section B: framework package, inventory, and the 5-phase setup plan with final file contents.
-- Pass `DESIGN_MD_CONTENT` as context so the Foundations check (A8) and plan (Phase 3) compare against the file just written, not a stale copy.
+`Skip` → go to Finish.
 
-Once the skill completes, capture the entire output as `PHASE2_OUTPUT`. This is the raw material for Phase 3.
+### Branch A — ClickUp
 
-Present the Phase 2 output to the user, then use `AskUserQuestion` with:
-- Header: "Plan the work"
-- Question: "How would you like to track the tasks for this work?"
-- Options:
-  - `ClickUp` — create a parent ticket and subtasks in ClickUp
-  - `Local files` — generate a task plan as local Markdown files
-  - `Skip` — no task tracking, finish here
+**3A.1 Workspace and list**
+1. `AskUserQuestion` header "ClickUp workspace": "Which ClickUp workspace should this ticket be created in? Enter the workspace name or ID." (free text) → `WORKSPACE_INPUT`.
+2. `mcp__clickup__clickup_get_workspace_hierarchy {}`; match `WORKSPACE_INPUT` by name or ID. No match → tell the user and ask them to confirm before continuing.
+3. `AskUserQuestion` header "ClickUp list": "Which list should the parent ticket be created in?" — up to 6 options from Space → Folder → List, plus "Other (type list ID)" → `LIST_ID`.
 
-Capture the choice as `TASK_MODE` and proceed to Phase 3.
+Proceed only once both are confirmed.
 
----
+**3A.2 Parent ticket**
+- Title: Section A ran → `"Improve Storybook implementation"`; Section B ran → `"Set up Storybook and design system documentation"`.
+- Description from `PHASE2_OUTPUT`: Section A → baseline score, coverage %, every ❌ Critical and ⚠️ High finding verbatim (path — current → expected); Section B → context block + 5-phase overview. Both: "Done = every check in design-system-docs A1–A8 passes".
+- `mcp__clickup__clickup_create_task { list_id: "<LIST_ID>", name: "<title>", description: "<summary>" }` → `PARENT_TICKET_ID`, `PARENT_TICKET_URL`.
 
-## Phase 3 — Task Creation (`plan-expert`)
-
-If `TASK_MODE` is `Skip`, go directly to [Finish](#finish).
-
----
-
-### Branch A — ClickUp (`TASK_MODE = ClickUp`)
-
-#### 3A.1 — Ask for workspace and list
-
-Before fetching anything, use `AskUserQuestion` to ask the user for their ClickUp workspace name or ID:
-
-- Header: "ClickUp workspace"
-- Question: "Which ClickUp workspace should this ticket be created in? Enter the workspace name or ID."
-- Accept free-form text. Capture the answer as `WORKSPACE_INPUT`.
-
-Then fetch the workspace hierarchy to resolve available spaces and lists:
-
-```
-mcp__clickup__clickup_get_workspace_hierarchy {}
-```
-
-Use the hierarchy response to find the workspace that matches `WORKSPACE_INPUT` (by name or ID). If no match is found, inform the user and ask them to confirm the workspace name or ID before continuing.
-
-Once the workspace is resolved, use `AskUserQuestion` to ask the user to pick the destination list:
-
-- Header: "ClickUp list"
-- Question: "Which list should the parent ticket be created in?"
-- Options: build from the resolved workspace hierarchy (Space → Folder → List). Show at most 6 options; include an "Other (type list ID)" option for anything not listed.
-
-Capture the selected value as `LIST_ID`. Do not proceed to 3A.2 until both `WORKSPACE_INPUT` and `LIST_ID` are confirmed.
-
-#### 3A.2 — Create the parent ticket
-
-Determine the ticket title based on the Phase 2 branch:
-
-- **Storybook already exists (Section A was run):** `"Improve Storybook implementation"`
-- **No Storybook found (Section B was run):** `"Set up Storybook and design system documentation"`
-
-Build the ticket description from `PHASE2_OUTPUT`:
-- Section A: baseline score, coverage %, then every ❌ Critical and ⚠️ High finding verbatim (path — current → expected)
-- Section B: context block plus the 5-phase overview
-- Both: link the baseline as the acceptance target — "Done = every check in design-system-docs A1–A8 passes"
-
-```
-mcp__clickup__clickup_create_task {
-  list_id: "<LIST_ID>",
-  name: "<ticket title>",
-  description: "<summary from PHASE2_OUTPUT>"
-}
-```
-
-Capture `PARENT_TICKET_ID` and `PARENT_TICKET_URL`.
-
-#### 3A.3 — Execute `plan-expert`
-
-Run the full `plan-expert` skill as defined in its SKILL.md, passing:
-
-- `--ticket-id <PARENT_TICKET_ID>`
-- `--description "<PHASE2_OUTPUT>"` — pass the full Phase 2 output so plan-expert has complete context
-
-Decomposition rules plan-expert must apply:
+**3A.3 Run `plan-expert`** with `--ticket-id <PARENT_TICKET_ID>` and `--description "<PHASE2_OUTPUT>"` (full output). Decomposition:
 - One subtask per config file group (dependencies + scripts, `.storybook/*`, Vitest config) and one per Foundations page.
-- One subtask per UI component gap, each listing its required stories, `play` tests and spec from the coverage table.
-- Each subtask's acceptance criteria quote the baseline checks it closes.
+- One subtask per UI component gap, listing its required stories, `play` tests and spec from the coverage table.
+- Acceptance criteria quote the baseline checks each subtask closes.
 - Order: DESIGN.md fixes → config → Foundations → core primitives → composites → CI gate.
 
-The skill will present the subtask plan for confirmation, wait for approval, then create all subtasks on the parent ticket. Do not skip the confirmation step — `plan-expert` owns it.
+`plan-expert` owns the confirmation step (present plan, wait for approval, then create subtasks on the parent) — never skip it.
 
----
+### Branch B — Local files
 
-### Branch B — Local files (`TASK_MODE = Local files`)
-
-#### 3B.1 — Execute `plan-expert`
-
-Run the full `plan-expert` skill as defined in its SKILL.md, passing only:
-
-- `--description "<PHASE2_OUTPUT>"` — pass the full Phase 2 output as the planning input
-
-The skill will decompose the work into subtasks, present the plan for confirmation, and on approval create local task files for the session. Do not skip the confirmation step — `plan-expert` owns it.
-
----
+Run `plan-expert` with only `--description "<PHASE2_OUTPUT>"`. It decomposes, asks for confirmation (never skip), and on approval creates local task files for the session.
 
 ## Finish
 
-Once all phases are complete, output this summary and stop:
+Output and stop — no further suggestions:
 
 ```
 ## Design System Setup Complete
@@ -152,5 +82,3 @@ DESIGN.md written / updated at the project root — validation gate passed.
   OR
 [Skipped]
 ```
-
-Do not suggest further steps or offer to continue.

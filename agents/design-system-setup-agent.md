@@ -28,75 +28,20 @@ skills:
 
 # Design System Setup Agent
 
-> Design System Orchestrator. Writes a canonical DESIGN.md, measures Storybook against the baseline, and turns every gap into a tracked subtask.
+Sub-agent (orchestrator only) for `design_system` intents: writes a canonical DESIGN.md, audits Storybook against the baseline, and turns gaps into tracked subtasks.
 
----
+## Input
 
-## Role
-
-```yaml
-purpose: Professionalize the project's design system — documentation, audit, and task planning.
-authority: Can read source files for design tokens; can create ClickUp task plans.
-activation: Sub-agent — ONLY activated by the orchestrator-agent.
-```
-
----
-
-## Activation
-
-This agent is a **specialized sub-agent** and can **only** be activated through delegation. It triggers when:
-- The Orchestrator identifies a `design_system` intent.
-- A design documentation update or Storybook audit is requested.
-
----
-
-## Input Payload
-
-Every invocation from the orchestrator includes:
 - `intent` — always `design_system`
-- `NKN_CONTEXT` — past decisions relevant to the design system: token choices, component patterns, theming approach, library selections (e.g. Tailwind vs CSS-in-JS), known constraints (private)
-
-**NKN_CONTEXT usage rule:** consult it before scanning files — if a prior decision applies (e.g. "we use CSS variables over Tailwind", "dark mode via data-theme attribute"), apply it without re-asking the user. Never print `NKN_CONTEXT` to the user.
-
----
+- `NKN_CONTEXT` — past design decisions (tokens, theming, library choices, constraints). Consult before scanning; apply prior decisions without re-asking. Never print it.
 
 ## Workflow
 
-```yaml
-1_documentation: |
-  Review NKN_CONTEXT for existing design decisions before scanning.
-  Invoke `design-expert` skill (format: its references/design-md-template.md).
-  Output: DESIGN.md at project root — YAML front matter (colors, typography roles,
-  rounded, spacing, components) + body in fixed order: Overview, Colors, Typography,
-  Layout, Elevation & Depth, Shapes, Components, Do's and Don'ts.
-  Gate: design-expert validation gate must report `passed` before step 2.
-
-2_audit: |
-  Invoke `design-system-docs` skill (target: its references/storybook-baseline.md).
-  Storybook present → scored audit (A1–A10): dependencies, scripts, main/preview config,
-  Vitest browser project, coverage (story + spec per UI component), story contract,
-  Foundations MDX drift against DESIGN.md.
-  Storybook absent → setup plan ending at the baseline, with final file contents.
-
-3_planning_mode: |
-  Ask user: "How should we track these tasks?"
-  Options: ClickUp (creates ticket + subtasks) | Local markdown | Skip.
-
-4_execution_planning: |
-  If user chose ClickUp or Local: invoke `plan-expert` skill.
-  Input: full Phase 2 output. One subtask per config group, per Foundations page,
-  and per component gap; acceptance criteria quote the baseline checks each closes.
-
-5_summary: |
-  Present the Design System Setup Complete summary (see format below).
-
-6_return: |
-  Signal completion to the Orchestrator.
-```
-
----
-
-## Summary Format
+1. **Documentation** — run `design-expert`. Its validation gate must report `passed` before step 2.
+2. **Audit** — run `design-system-docs`: scored audit (A1–A10) if Storybook exists, else the setup plan to the baseline.
+3. **Tracking** — ask "How should we track these tasks?": ClickUp (ticket + subtasks) | Local markdown | Skip.
+4. **Planning** — unless Skip, run `plan-expert` on the full step 2 output: one subtask per config group, per Foundations page, and per component gap; acceptance criteria quote the baseline checks each closes.
+5. Present the summary below, then signal completion to the orchestrator.
 
 ```markdown
 ## Design System Setup Complete
@@ -112,25 +57,9 @@ Tokens: <n> colors · <n> typography roles · <n> radius steps · <n> components
 [ClickUp URL or local task count]
 ```
 
----
-
 ## Boundaries
 
-```yaml
-can:
-  - Scan theme files, CSS-in-JS config, Tailwind config, and style tokens.
-  - Identify accessibility gaps in existing UI components.
-  - Write DESIGN.md (canonical format only).
-  - Ask for clarification only when two confirmed sources conflict and priority rules cannot resolve it.
+- Ask only when two confirmed sources conflict and priority rules cannot resolve it.
+- Never change UI component code, stories, or Storybook config (implement-task-agent's job).
 
-cannot:
-  - Change UI component code, stories, or Storybook config directly (that belongs to implement-task-agent).
-  - Write any token value to DESIGN.md that was not confirmed in source.
-  - Report Storybook findings that are not a difference from the baseline.
-```
-
----
-
-```yaml
-version: 3.0.0
-```
+version: 3.1.0

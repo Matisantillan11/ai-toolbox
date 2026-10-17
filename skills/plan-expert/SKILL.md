@@ -8,191 +8,93 @@ effort: medium
 
 # plan-expert
 
-**Role:** Senior Technical Architect.  
-**Goal:** Decompose a task, ticket, or description into a **Software Design Document (SDD)** and a precise, ordered sequence of actionable subtasks — with enough detail that any engineer on the team can pick up and implement each step independently without further clarification.
+**Role:** Senior Technical Architect. Turn a ticket or description into an **SDD** plus ordered subtasks detailed enough for any engineer to implement each one without further clarification.
 
----
+Usage: `/plan-expert [--ticket-id <id>] [--description "<text>"]` — with both, the description narrows/extends the ticket.
 
-## Usage
+## Step 1 — Resolve input
 
-**Plan from a ClickUp ticket:**
-```
-/plan-expert --ticket-id abc123xyz
-```
+Parse `$ARGUMENTS` for `--ticket-id` and `--description`.
 
-**Plan from a description:**
-```
-/plan-expert --description "Build a user authentication flow with email and OAuth"
-```
-
-**Plan from both (description overrides/extends the ticket):**
-```
-/plan-expert --ticket-id abc123xyz --description "Focus only on the backend part"
-```
-
-**Without arguments** — Claude will ask the user what to plan:
-```
-/plan-expert
-```
-
----
-
-## Step 1 — Resolve Input
-
-Parse `$ARGUMENTS` to extract `--ticket-id` and `--description`.
-
-**Case A — Neither argument provided:**  
-Use `AskUserQuestion` with:
-- Question: "What do you want to plan?"
-- Header: "Plan Expert"
-- Accept free-form text. Treat the answer as the `--description` input and continue to Step 2.
-
-**Case B — `--ticket-id` provided:**  
-Fetch the ticket using the ClickUp MCP:
-```
-mcp__clickup__clickup_get_task { task_id: "<ticket-id>" }
-```
-Extract from the response:
-- `name` → task title
-- `description` → full task description (may be markdown or plain text)
-- `status` → current status
-- `assignees` → assigned team members
-- `subtasks` (if any already exist — note them to avoid duplication)
-
-If the ticket cannot be fetched, inform the user: "Could not fetch ticket `<id>`. Please check the ID or verify ClickUp MCP access." and stop.
-
-**Case C — `--description` provided (no ticket):**  
-Use the description text directly as the planning input. Skip to Step 2.
-
-**Case D — Both provided:**  
-Fetch the ticket as in Case B. Treat the `--description` as a scope modifier or focus area that overrides or narrows the ticket content for planning purposes. Note both sources when generating the plan.
-
----
+- **A — neither:** `AskUserQuestion` (header "Plan Expert", question "What do you want to plan?", free-form). Use the answer as `--description`.
+- **B — `--ticket-id`:** `mcp__clickup__clickup_get_task { task_id: "<ticket-id>" }`; extract `name`, `description`, `status`, `assignees`, existing `subtasks` (avoid duplicating them). On failure: "Could not fetch ticket `<id>`. Please check the ID or verify ClickUp MCP access." and stop.
+- **C — `--description` only:** use it directly.
+- **D — both:** fetch as in B; the description overrides/narrows the ticket scope. Note both sources.
 
 ## Step 2 — Analyze
 
-Read the resolved input carefully. Think as a senior engineer scoping a sprint ticket.
+1. Goal: one sentence — what must be true when done.
+2. Concerns: include only the areas that apply — Backend/API, Frontend/UI, Database, Auth, Integrations, Testing, Infrastructure/DevOps, Documentation, Security, Performance.
+3. Explore with Grep/Glob/Read: files/modules touched, existing patterns, shared utilities, naming conventions. Read project instructions — use `PROJECT_CONTEXT` if the caller passed it; otherwise read `AGENTS.md` at the project root, or `CLAUDE.md` if `AGENTS.md` does not exist — and `DESIGN.md` if present.
 
-### 2.1 Identify the goal
+## Step 3 — SDD
 
-Summarize the objective in one sentence: what needs to be true when this is done?
-
-### 2.2 Identify concerns
-
-For each of the following areas, decide if it is relevant to this task. Only include areas that actually apply:
-
-- **Backend / API** — endpoints, business logic, data models, migrations
-- **Frontend / UI** — components, pages, routing, state management
-- **Database** — schema changes, queries, indexes, seeds
-- **Authentication / Authorization** — access control, roles, sessions
-- **Integrations** — third-party APIs, webhooks, SDKs
-- **Testing** — unit, integration, E2E
-- **Infrastructure / DevOps** — deployment, env vars, CI/CD
-- **Documentation** — README, inline docs, API docs
-- **Security** — input validation, secrets, permissions
-- **Performance** — caching, pagination, query optimization
-
-### 2.3 Explore the codebase
-
-Use Grep/Glob/Read to map the affected area:
-- Locate files and modules the task will touch
-- Identify existing patterns, shared utilities, and naming conventions to follow
-- Check the project instructions (use `PROJECT_CONTEXT` if the caller passed it; otherwise read `AGENTS.md` at the project root, or `CLAUDE.md` if `AGENTS.md` does not exist) and `DESIGN.md` (if present) for stack rules and design constraints
-
-This codebase reading is the foundation for both the SDD and the subtask breakdown.
-
----
-
-## Step 3 — Generate the SDD
-
-Produce a Software Design Document (SDD) from the analysis in Step 2. The SDD is the architectural contract that governs how the feature must be implemented and verified.
-
-> **MANDATORY SDD RULE**  
-> Every field is required. If a section genuinely does not apply, write `N/A` — never omit the field.
+Every field is required; write `N/A` if a section does not apply — never omit it.
 
 ```
 ## Software Design Document: <feature title>
 
 ### Overview
-<One paragraph: what this feature does, why it exists, and its user-facing impact.>
+<One paragraph: what it does, why, user-facing impact.>
 
 ### Architecture
-<How this feature fits the existing system. Which layers are involved (API, UI, DB, etc.).
-Note any structural decisions (e.g. new service vs. extending existing one).>
+<How it fits the system, layers involved, structural decisions.>
 
 ### Data Model
-<New entities, modified fields, or schema changes required. Include migration notes if applicable.
-Write "N/A" if no data model changes are needed.>
+<New entities, modified fields, schema changes, migration notes — or N/A.>
 
 ### Interface Contracts
-<New or modified API endpoints (method, path, request body, response shape, error cases).
-For UI: key component props and state shape.
-Write "N/A" if none.>
+<API endpoints (method, path, request, response, errors); UI component props/state — or N/A.>
 
 ### Integration Points
-<External services, third-party SDKs, or shared internal utilities that will be used or modified.
-Write "N/A" if none.>
+<External services, SDKs, shared internal utilities used or modified — or N/A.>
 
 ### Security & Validation
-<Input validation rules, authentication/authorization requirements, and data sensitivity notes.
-Write "N/A" if none.>
+<Input validation, authn/authz, data sensitivity — or N/A.>
 
 ### System-Level Acceptance Criteria
-- [ ] <Verifiable criterion — written so a reviewer can confirm it without asking questions>
-- [ ] <Add as many as needed — these are verified by verify-task-agent after implementation>
+- [ ] <Verifiable without asking questions — checked by verify-task-agent after implementation>
 
 ### Out of Scope
-<Explicitly excluded from this feature. Be specific.>
+<Specific exclusions.>
 
 ### Testing Strategy
-<What must be tested (unit, integration, E2E) and against which components or flows.>
+<Unit / integration / E2E and against which components or flows.>
 ```
 
----
+## Step 4 — Present SDD and subtask plan
 
-## Step 4 — Output the SDD and Subtask Plan
-
-> **MANDATORY TEMPLATE RULE**  
-> Every subtask — without exception — must be written using the template below.  
-> All 8 sections are required in every subtask.  
-> If a section has nothing to say, write `N/A`. Never skip, collapse, or summarize a section.
-
-Present the full SDD from Step 3 first, then the complete subtask breakdown:
+Every subtask must use this template with all 8 sections, in order; write `N/A` (or `None` for Depends on) when empty — never skip, merge, or summarize a section. Show the full SDD first, then:
 
 ```
----
-
 ## Subtask Breakdown
 
 **Goal:** <one-sentence objective>
-**Scope:** <comma-separated concern areas from 2.2>
+**Scope:** <concern areas from Step 2>
 **Subtasks:** <count>
 
----
-
-### Subtask 1 — <imperative title starting with a verb>
+### Subtask N — <imperative title starting with a verb>
 
 #### Context
-<Why this subtask exists and how it fits the SDD. Reference the relevant SDD section if applicable.>
+<Why it exists and how it fits the SDD; cite the SDD section.>
 
 #### What to implement
-<Detailed description — no ambiguity. Use bullet points for multi-part work.>
+<Unambiguous detail; bullets for multi-part work.>
 
 #### Where
-<Specific file paths, modules, or layers involved. Align with the SDD Architecture and Data Model.>
+<File paths, modules, layers — aligned with SDD Architecture / Data Model.>
 
 #### Acceptance criteria
 - [ ] <Specific, testable criterion>
-- [ ] <Add as many as needed>
 
 #### Out of scope
-<Explicitly list what this subtask must NOT do. If nothing notable, write "N/A".>
+<What this subtask must NOT do, or N/A.>
 
 #### Depends on
-<"Subtask N — <title>" for each blocker. If none, write "None".>
+<"Subtask N — <title>" per blocker, or None.>
 
 #### Technical notes
-<Implementation hints, known edge cases, gotchas, or relevant prior art. If nothing notable, write "N/A".>
+<Hints, edge cases, gotchas, prior art, or N/A.>
 
 #### Definition of done
 - [ ] Implementation satisfies all acceptance criteria above
@@ -200,114 +102,50 @@ Present the full SDD from Step 3 first, then the complete subtask breakdown:
 - [ ] No new lint, type, or build errors introduced
 - [ ] Code reviewed and approved by at least one teammate
 - [ ] Any new public API or behavior is documented (inline or in relevant docs)
-
----
-
-### Subtask 2 — <imperative title starting with a verb>
-
-#### Context
-<...>
-
-#### What to implement
-<...>
-
-#### Where
-<...>
-
-#### Acceptance criteria
-- [ ] <...>
-
-#### Out of scope
-<...>
-
-#### Depends on
-<...>
-
-#### Technical notes
-<...>
-
-#### Definition of done
-- [ ] Implementation satisfies all acceptance criteria above
-- [ ] Relevant unit or integration tests written and passing
-- [ ] No new lint, type, or build errors introduced
-- [ ] Code reviewed and approved by at least one teammate
-- [ ] Any new public API or behavior is documented (inline or in relevant docs)
-
----
-
-(repeat the full template for every subsequent subtask)
 ```
 
-Order subtasks from foundational to dependent (data layer → logic → API → UI → tests → docs).
+Order foundational → dependent (data → logic → API → UI → tests → docs). Aim for 4–10 subtasks; if larger, recommend splitting into separate tickets. Then ask "Does this design and plan look correct? Should I proceed to create the subtasks?" and wait for confirmation.
 
-Aim for 4–10 subtasks. If the task is very large, note that it should be split into separate tickets.
+## Step 5 — Write subtasks
 
-After presenting the SDD and subtask plan, ask:
+Each `description`/body is the complete rendered template — all 8 sections in order: Context, What to implement, Where, Acceptance criteria, Out of scope, Depends on, Technical notes, Definition of done.
 
-> "Does this design and plan look correct? Should I proceed to create the subtasks?"
-
-Wait for user confirmation before proceeding to Step 5.
-
----
-
-## Step 5 — Write Subtasks
-
-### If `--ticket-id` was provided (Case B or D):
-
-Fetch the parent task's `list` field to get the correct `list_id`. Store the SDD as a comment or in the parent task description (prepend it if not already present). Create each subtask in order (1 → N) using:
-
+**Ticket (B or D):** get the parent's `list` for `list_id`; store the SDD as a comment or prepend it to the parent description if not already present. Create subtasks 1 → N:
 ```
-mcp__clickup__clickup_create_task {
-  list_id: "<same list as parent task>",
-  name: "<subtask title>",
-  description: "<full subtask body using the template from Step 4 — all 8 sections included>",
-  parent: "<ticket-id>"
-}
+mcp__clickup__clickup_create_task { list_id: "<parent list>", name: "<subtask title>", description: "<full 8-section body>", parent: "<ticket-id>" }
 ```
-
-The `description` field must be the complete rendered template — all 8 sections in order: Context, What to implement, Where, Acceptance criteria, Out of scope, Depends on, Technical notes, Definition of done. Do not abbreviate, merge, or omit any section.
-
-After all subtasks are created, report:
-
+Report:
 ```
 ## Plan Complete
 
 ### Software Design Document
-<SDD from Step 3 — full text>
+<full SDD>
 
 ### Subtasks Created
 ✅ Subtask 1 — <title> (id: ...)
-✅ Subtask 2 — <title> (id: ...)
 ...
 
 All subtasks have been added to ticket <ticket-id>.
 ```
 
-### If only `--description` was provided (Case C):
-
-Create a local task using `TaskCreate` for each subtask. Set the task title to the subtask title and the body to the complete rendered template from Step 4 — all 8 sections in order. Report:
-
+**Description only (C):** `TaskCreate` per subtask (title = subtask title, body = full template). Report:
 ```
 ## Plan Complete
 
 ### Software Design Document
-<SDD from Step 3 — full text>
+<full SDD>
 
 ### Task List Created (local)
 ✅ Task 1 — <title>
-✅ Task 2 — <title>
 ...
 
 These tasks are local to this session. To persist them to ClickUp, run
 `/plan-expert --ticket-id <id>` with an existing ClickUp ticket.
 ```
 
----
+## Return value
 
-## Return Value
-
-When invoked as a sub-skill (by `plan-expert-agent`), return the following structured payload to the caller before any other output:
-
+When invoked by `plan-expert-agent`, return this before any other output:
 ```yaml
 SDD: <full SDD text from Step 3>
 subtask_list:
@@ -316,13 +154,11 @@ subtask_list:
 TICKET_ID: <ticket-id if available, otherwise null>
 ```
 
----
-
 ## Constraints
 
-- **Every task written — to ClickUp or locally — must use the mandatory 8-section template defined in Step 4. No exceptions. A task missing any section is incomplete and must not be created.**
-- The SDD is mandatory output. Do not skip SDD generation even for small tasks.
-- Do not invent technical details that cannot be inferred from the input. If a detail is ambiguous, note it explicitly in the subtask or SDD as: `⚠️ Clarify: <question>`.
-- Do not create subtasks for work that is already marked as done in existing ticket subtasks.
-- Do not skip the user confirmation step between Step 4 and Step 5.
-- If the ticket is in a "done" or "closed" status, warn the user before proceeding: "This ticket appears to be already closed. Do you still want to create subtasks on it?"
+- A task (ClickUp or local) missing any of the 8 sections must not be created.
+- The SDD is mandatory, even for small tasks.
+- Never invent details; mark ambiguity as `⚠️ Clarify: <question>` in the SDD or subtask.
+- Skip work already marked done in existing ticket subtasks.
+- Never skip the confirmation between Step 4 and Step 5.
+- If the ticket is done/closed, warn first: "This ticket appears to be already closed. Do you still want to create subtasks on it?"
